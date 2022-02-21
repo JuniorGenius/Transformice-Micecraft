@@ -2291,22 +2291,25 @@ local createNewWorld = function(heightMaps)
 end
 
 local startPlayer = function(playerName, spawnPoint)
-	room.player[playerName] = playerNew(playerName, spawnPoint)
-	for k=0, 200 do
-		system.bindKeyboard(playerName, k, false, true)
-		system.bindKeyboard(playerName, k, true, true)
-		room.player[playerName].keys[k+1] = false
+	if not room.player[playerName] then
+		room.player[playerName] = playerNew(playerName, spawnPoint)
+		local _system_bindKeyboard = system.bindKeyboard
+		for k=0, 200 do
+			_system_bindKeyboard(playerName, k, false, true)
+			_system_bindKeyboard(playerName, k, true, true)
+			room.player[playerName].keys[k+1] = false
+		end
+		system.bindMouse(playerName, true)
+		
+		tfm.exec.setAieMode(true, 5.0, playerName)
+		eventPlayerDied(playerName)
+		if timer > 3000 then
+			ui.addTextArea(777, "", playerName, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+			playerUpdateNearChunks(room.player[playerName], 1, true)
+		end
+		playerDisplayInventoryBar(room.player[playerName])
+		playerChangeSlot(room.player[playerName], 28)
 	end
-	system.bindMouse(playerName, true)
-	
-	tfm.exec.setAieMode(true, 5.0, playerName)
-	eventPlayerDied(playerName)
-	if timer > 3000 then
-		ui.addTextArea(777, "", playerName, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
-		playerUpdateNearChunks(room.player[playerName], 1, true)
-	end
-	playerDisplayInventoryBar(room.player[playerName])
-	playerChangeSlot(room.player[playerName], 28)
 end
 
 -- =============== 		EVENTS		============== --
@@ -2387,7 +2390,7 @@ function eventLoop(elapsed, remaining)
 end
 
 function eventKeyboard(playerName, key, down, x, y)
-	if timer > awaitTime then
+	if timer > awaitTime and room.player[playerName] then
 		if down then
 			room.player[playerName].keys[key+1] = true
 			
@@ -2430,7 +2433,7 @@ function eventKeyboard(playerName, key, down, x, y)
 end
 
 function eventMouse(playerName, x, y)
-	if timer > awaitTime then
+	if timer > awaitTime and room.player[playerName] then
 		if room.player[playerName].isAlive then
 			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 				local isKeyActive = room.player[playerName].keys
@@ -2449,13 +2452,17 @@ function eventMouse(playerName, x, y)
 end
 
 function eventPlayerDied(playerName)
-	room.player[playerName].isAlive = false
-	tfm.exec.respawnPlayer(playerName)
+	if room.player[playerName] then
+		room.player[playerName].isAlive = false
+		tfm.exec.respawnPlayer(playerName)
+	end
 end
 
 function eventPlayerRespawn(playerName)
-	tfm.exec.movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
-	playerUpdate(room.player[playerName], map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
+	if room.player[playerName] then
+		tfm.exec.movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
+		playerUpdate(room.player[playerName], map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
+	end
 	--room.player[playerName].isAlive = true
 end
 
@@ -2466,7 +2473,7 @@ function eventNewPlayer(playerName)
 end
 
 function eventPlayerLeft(playerName)
-	room.player[playerName].isAlive = false
+	room.player[playerName] = nil--.isAlive = false
 end
 
 function eventChatCommand(playerName, command)
@@ -2626,7 +2633,7 @@ function eventTextAreaCallback(textAreaId, playerName, eventName)
 	
 	if textAreaId == 0 then
 		if eventName == "help" then
-			local helpText = "<p align='center'><font size='48' face='Consolas'><D>Help</D></font></p>\n\n<font face='Consolas'>Welcome to <J><b>"..(modulo.name).."</b></J>, script created by <V>"..(modulo.creator).."</V>.\n\n<b>CONTROLS:</b>\n- <u>CLICK:</u> Damage blocks.\n- <u><V>SHIFT</V> + CLICK:</u> Places a block, from selected slot.\n- <u>[1- 9]:</u> Select a slot from inventory. You can also click on them to select.\n- [E]: Opens the main inventory.\n- <u><V>CTRL</V> + CLICK</u>: Exchanges the position of an item from a previous slot to the new clicked one.\n\n\nIf you find any bugs, please report to my Direct Messages in the Forum or through my Discord: <CH>Cap#1753</CH>.\n\nHope you enjoy!"
+			local helpText = "<p align='center'><font size='48' face='Consolas'><D>Help</D></font></p>\n\n<font face='Consolas'>Welcome to <J><b>"..(modulo.name).."</b></J>, script created by <V>"..(modulo.creator).."</V>.\n\n<b>CONTROLS:</b>\n- <u>CLICK:</u> Damage blocks.\n- <u><V>SHIFT</V> + CLICK:</u> Places a block, from selected slot.\n- <u>[1- 9]:</u> Select a slot from inventory. You can also click on them to select.\n- [E]: Opens the main inventory.\n- <u><V>CTRL</V> + CLICK</u>:  Interacts with a block, when in inventory it exchanges the position of an item from a previous slot to the new clicked one.\n\n\nIf you find any bugs, please report to my Direct Messages in the Forum or through my Discord: <CH>Cap#1753</CH>.\n\nHope you enjoy!"
 			ui.addTextArea(200, helpText, playerName, 150, 50, 500, 300, 0x010101, 0x010101, 0.67, true)
 			ui.addTextArea(201, "<font size='16'><a href='event:clear'><R><b>X</b></R></a>", playerName, 630, 55, 0, 0, 0x000000, 0x000000, 1.0, true)
 		end
@@ -2643,49 +2650,51 @@ function eventTextAreaCallback(textAreaId, playerName, eventName)
 end
 
 function eventPopupAnswer(popupId, playerName, answer)
-	if popupId == 10 then
-		if room.player[playerName].trade.timestamp < os.time() - 15000 then
-			if room.player[answer] then
-				if playerName ~= answer then
-					if not room.player[answer].trade.whom then
-						playerInitTrade(room.player[playerName], answer)
-						playerInitTrade(room.player[answer], playerName)
-						ui.addPopup(11, 1, "<p align='center'>Do you want to trade with <D>"..(playerName).."</D>?", answer, 325, 100, 150, true)
+	if room.player[playerName] then
+		if popupId == 10 then
+			if room.player[playerName].trade.timestamp < os.time() - 15000 then
+				if room.player[answer] then
+					if playerName ~= answer then
+						if not room.player[answer].trade.whom then
+							playerInitTrade(room.player[playerName], answer)
+							playerInitTrade(room.player[answer], playerName)
+							ui.addPopup(11, 1, "<p align='center'>Do you want to trade with <D>"..(playerName).."</D>?", answer, 325, 100, 150, true)
+						else
+							ui.addPopup(10, 0, "<p align='center'>The user <CEP>"..(answer).."</CEP> is currently trading with another person.", playerName, 250, 180, 300, true)
+						end
 					else
-						ui.addPopup(10, 0, "<p align='center'>The user <CEP>"..(answer).."</CEP> is currently trading with another person.", playerName, 250, 180, 300, true)
+						ui.addPopup(10, 0, "<p align='center'>You can't trade with yourself.", playerName, 250, 180, 300, true)
 					end
 				else
-					ui.addPopup(10, 0, "<p align='center'>You can't trade with yourself.", playerName, 250, 180, 300, true)
+					ui.addPopup(10, 0, "<p align='center'>Sorry, the user <CEP>"..(answer).."</CEP> is invalid or does not exist.", playerName, 250, 180, 300, true)
 				end
 			else
-				ui.addPopup(10, 0, "<p align='center'>Sorry, the user <CEP>"..(answer).."</CEP> is invalid or does not exist.", playerName, 250, 180, 300, true)
+				ui.addPopup(10, 0,
+				string.format("<p align='center'>You have to wait %ds in order to start a new trade.", ((room.player[playerName].trade.timestamp + 15000)-os.time())/1000), playerName, 250, 180, 300, true)
 			end
-		else
-			ui.addPopup(10, 0,
-			string.format("<p align='center'>You have to wait %ds in order to start a new trade.", ((room.player[playerName].trade.timestamp + 15000)-os.time())/1000), playerName, 250, 180, 300, true)
-		end
-	elseif popupId == 11 then
-		if answer == "yes" then
-			room.player[playerName].trade.isActive = true
-			room.player[room.player[playerName].trade.whom].trade.isActive = true
+		elseif popupId == 11 then
+			if answer == "yes" then
+				room.player[playerName].trade.isActive = true
+				room.player[room.player[playerName].trade.whom].trade.isActive = true
+				
+				ui.addTextArea (1002, "<b><font face='Consolas'><p align='right'><CEP>Trading with</CEP> <D>"..(room.player[playerName].trade.whom).."</D>", playerName, 600, 20, 200, 0, 0x000000, 0x000000, 1.0, true)
+				ui.addTextArea (1002, "<b><font face='Consolas'><p align='right'><CEP>Trading with</CEP> <D>"..(playerName).."</D>", room.player[playerName].trade.whom, 600, 20, 200, 0, 0x000000, 0x000000, 1.0, true)
+			elseif answer == "no" then
+				ui.addPopup(10, 0, "<p align='center'><D>"..(playerName).."</D> has <R>rejected</R> the trade.", room.player[playerName].trade.whom, 250, 180, 300, true)
+				eventPopupAnswer(11, playerName, "CANCEL")
+			elseif answer == "canceled" then
+				ui.addPopup(10, 0, "<p align='center'><D>"..(playerName).."</D> has <CEP>canceled</CEP> the trade.", room.player[playerName].trade.whom, 250, 180, 300, true)
+				ui.addPopup(10, 0, "<p align='center'>Trade has been canceled successfully.", playerName, 250, 180, 300, true)
+				ui.removeTextArea(1002, room.player[playerName].trade.whom)
+				ui.removeTextArea(1002, playerName)
+				
+				eventPopupAnswer(11, playerName, "CANCEL")
+			end
 			
-			ui.addTextArea (1002, "<b><font face='Consolas'><p align='right'><CEP>Trading with</CEP> <D>"..(room.player[playerName].trade.whom).."</D>", playerName, 600, 20, 200, 0, 0x000000, 0x000000, 1.0, true)
-			ui.addTextArea (1002, "<b><font face='Consolas'><p align='right'><CEP>Trading with</CEP> <D>"..(playerName).."</D>", room.player[playerName].trade.whom, 600, 20, 200, 0, 0x000000, 0x000000, 1.0, true)
-		elseif answer == "no" then
-			ui.addPopup(10, 0, "<p align='center'><D>"..(playerName).."</D> has <R>rejected</R> the trade.", room.player[playerName].trade.whom, 250, 180, 300, true)
-			eventPopupAnswer(11, playerName, "CANCEL")
-		elseif answer == "canceled" then
-			ui.addPopup(10, 0, "<p align='center'><D>"..(playerName).."</D> has <CEP>canceled</CEP> the trade.", room.player[playerName].trade.whom, 250, 180, 300, true)
-			ui.addPopup(10, 0, "<p align='center'>Trade has been canceled successfully.", playerName, 250, 180, 300, true)
-			ui.removeTextArea(1002, room.player[playerName].trade.whom)
-			ui.removeTextArea(1002, playerName)
-			
-			eventPopupAnswer(11, playerName, "CANCEL")
-		end
-		
-		if answer == "CANCEL" then
-			playerCancelTrade(room.player[room.player[playerName].trade.whom])
-			playerCancelTrade(room.player[playerName])
+			if answer == "CANCEL" then
+				playerCancelTrade(room.player[room.player[playerName].trade.whom])
+				playerCancelTrade(room.player[playerName])
+			end
 		end
 	end
 end
