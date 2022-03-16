@@ -1,27 +1,14 @@
-local modulo = {
-	creator = "Indexinel#5948",
-	name = "Micecraft",
-	loading = nil,
-	sprite = "15150c10e92.png",
-	runtimeLapse = 0,
-	runtimeMax = 0,
-	runtimeLimit = 0
-}
 
-game = function()
 
-local math = math
-local os = os
+
+-- ==========	RESOURCES	========== --
+
 local string = string
 local table = table
 
 local system = system
 local tfm = tfm
 local ui = ui
-
-
-ui.addTextArea(999 , "<font size='64'><p align='center'>Initializing...</p></font>", nil, 100, 150, 600, 200, 0x000000, 0x000000, 1.0, true)
-modulo.loading = tfm.exec.addImage(modulo.sprite, ":999", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 
 local chunkSize = 12
 local maxBounds = {height=256, width=1020}
@@ -37,6 +24,16 @@ local room = {
 	isTribe = (string.sub(tfm.get.room.name, 1, 2) == "*\003"),
 	runtimeMax = 0,
 	player = {}
+}
+
+local modulo = {
+	creator = "Indexinel#5948",
+	name = "Micecraft",
+	loading = nil,
+	sprite = "15150c10e92.png",
+	runtimeLapse = 0,
+	runtimeMax = 0,
+	runtimeLimit = 0
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -72,7 +69,10 @@ local map = {
 	}]]
 }
 
--- =============	  RESOURCES 	============== --
+do
+	ui.addTextArea(999 , "<font size='64'><p align='center'>Initializing...</p></font>", nil, 100, 150, 600, 200, 0x000000, 0x000000, 1.0, true)
+	modulo.loading = tfm.exec.addImage(modulo.sprite, "~999", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
+end
 
 local structureData = {
 	[1] = { -- {type, ghost, xoff, yoff}
@@ -85,17 +85,6 @@ local structureData = {
 		{{0},{0},{71,false,0,1},{0},{0}}
 	}
 }
-
-local shadowSprite = "17e2d5113f3.png"
-
---[[
-biomas:
-overworld
-frost
-desert
-nether
-end
-]]
 
 local craftsData = {
 	--[[
@@ -504,43 +493,138 @@ local blockMetadata = {
 }
 
 local damageSprites = {"17dd4b6df60.png", "17dd4b72b5d.png", "17dd4b7775d.png", "17dd4b7c35f.png", "17dd4b80f5e.png", "17dd4b85b5f.png", "17dd4b8a75e.png", "17dd4b8f35f.png", "17dd4b93f5e.png", "17dd4b98b5d.png"}
+
 local mossSprites = {"17dd4b9d75e.png", "17dd4bb075d.png", "17dd4ba235f.png", "17dd4babb5c.png", "17dd4ba6f77.png"}
+
+local shadowSprite = "17e2d5113f3.png"
 
 local cmyk = {{"17e13158459.png", 0}, {"17e13161c88.png", 0}, {"17e1316685d.png", 0}, {"17e1315d05f.png", 0}}
 
--- =============	  OPTIMIZATION 	============== --
+
+-- ==========	PROTOTYPES	========== --
 
 
--- =============	  UTILITIES 	============== --
+local game = function()
 
-local _math_round = function(number, precision)
+local	blockNew,
+		blockDisplay,
+		blockHide,
+		blockDestroy,
+		blockCreate,
+		blockDamage,
+		blockInteract
+
+local 	chunkNew,
+		chunLoad,
+		chunkUnload, 
+		chunkActivate, 
+		chunkDeactivate, 
+		chunkDelete, 
+		chunkReload, 
+		chunkRefresh, 
+		chunkFlush, 
+		chunkUpdate
+
+local 	chunkCalculateCollisions, 
+		chunkActivateSegment, 
+		chunkActivateSegRange, 
+		chunkDeactivateSegment, 
+		chunkDeleteSegment,
+		chunkRefreshSegment, 
+		chunkRefreshSegList
+
+local 	worldRefreshChunks, 
+		handleChunksRefreshing, 
+		recalculateShadows
+		
+local	itemNew,
+		itemCreate,
+		itemRemove,
+		itemAdd,
+		itemSubstract,
+		itemReturnDisplayPositions,
+		itemDisplay,
+		itemHide,
+		itemMove
+		
+local	stackFindItem,
+		inventoryFindItem,
+		inventoryCreateItem,
+		inventoryInsertItem,
+		inventoryExtractItem,
+		inventoryExchangeItemsPosition
+
+local	playerNew,
+		playerAlert,
+		playerCleanAlert,
+		playerCorrectPosition,
+		playerStatic,
+		playerActualizeInfo,
+		playerReachNearChunks,
+		playerUpdateInventoryBar,
+		playerGetInventorySlot,
+		playerChangeSlot,
+		playerDisplayInventory,
+		playerHideInventory,
+		playerDisplayInventoryBar,
+		playerPlaceBlock,
+		playerDestroyBlock,
+		playerInitTrade,
+		playerCancelTrade,
+		playerLoopUpdate,
+		playerBlockInteract
+
+local 	_math_round,
+		_table_extract,
+		distance,
+		varify,
+		toBase,
+		linearInterpolation,
+		cosineInterpolate,
+		dump,
+		printt
+		
+local	generatePerlinHeightMap,
+		getPosChunk,
+		getPosBlock,
+		getTruePosMatrix
+		
+local addPhysicObject,
+    removePhysicObject,
+    getBlocksAround,
+    spreadParticles
+
+
+
+-- ==========	UTILITIES	========== --
+
+_math_round = function(number, precision)
 	local _mul = 10^precision
 	return math.floor(number*_mul) / _mul
 end
 
-local _table_extract = function(t, e)
-	for i in next, t do
-		if t[i] == e then
+_table_extract = function(t, e)
+	for i, v in next, t do
+		if v == e then
 			return table.remove(t, i)
 		end
 	end
 end
 
-local distance = function(ax, ay, bx, by)
+distance = function(ax, ay, bx, by)
 	return math.sqrt((bx-ax)^2 + (by-ay)^2)
 end
 
-local varify = function(args, pattern)
-	local t = {}
+varify = function(args, pattern)
+	local vars = {}
 	args:gsub(" ", "")
 	for arg in args:gmatch(pattern or "(%d+)?%p") do
-		table.insert(t, arg)
+		table.insert(vars, arg)
 	end
-	return table.unpack(t)
+	return table.unpack(vars)
 end
 
-
-local toBase = function(n, b)
+toBase = function(n, b)
 	n = math.floor(n)
 	if not b or b==10 then return tostring(n) end
 	local dg = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -557,9 +641,7 @@ local toBase = function(n, b)
 	return sign .. table.concat(t, "")
 end
 
-
-
-local linearInterpolation = function(r1, g1, b1, r2, g2, b2, sep, e)
+linearInterpolation = function(r1, g1, b1, r2, g2, b2, sep, e)
 	local ar = (r2-b1)/sep
 	local ag = (g2-b1)/sep
 	local ab = (b2-b1)/sep
@@ -567,12 +649,12 @@ local linearInterpolation = function(r1, g1, b1, r2, g2, b2, sep, e)
 	return (ar*e)+r1, (ag*e)+g1, (ab*e)+b1
 end
 
-local cosineInterpolate = function(a, b, x)
+cosineInterpolate = function(a, b, x)
 	local f = (1-math.cos(x*math.pi))*0.5
 	return (a*(1-f)) + (b*f)
 end
 
-local generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceStart, width, heightMid)
+generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceStart, width, heightMid)
 	if seed then math.randomseed(seed) end
 	
 	local heightMap = {}
@@ -599,7 +681,43 @@ local generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceSta
 	return heightMap
 end
 
-local getPosChunk = function(x, y, passObject)
+dump = function(var, nest)
+	nest = nest or 1
+	if type(var) == "table" then
+		local str = (nest == 1 and tostring(var):gsub("table: ", "") .. " =" or "") .. " {\n"
+		for k, v in pairs(var) do
+			local isNumber = type(k) == "number"
+			k = "<CEP>" .. k .. "</CEP>"
+			if isNumber then k = "["..k.."]" end
+			str = str .. string.rep("\t", nest) .. k .. " = " .. dump(v, nest+1) .. ",\n"--( and ",\n" or "\n")
+		end
+		
+		return (str .. string.rep("\t", nest-1) .. '}'):gsub(",\n\t*}", "\n"..string.rep('\t', nest-1).."}")
+	else
+		local color = 'N'
+		local st = var
+		local type = type(var)
+		if type == "string" then
+			st = '"' .. var .. '"'
+			color = 'T'
+		elseif type == "number" then
+			color = 'V'
+		elseif type == "boolean" then
+			color = var and 'CH' or 'CH2'
+		elseif type == "function" then
+			color = 'D'
+		end
+		
+		return "<"..color..">".. tostring(st) .."</"..color..">"
+	end
+end
+
+printt = function(var)
+	local _, val = pcall(dump, var)
+	print("<N2>" .. val .. "</N2>")
+end
+
+getPosChunk = function(x, y, passObject)
 	if x < 0 then x = 1 
 	elseif x > 32640 then x = 32639 end
 	if y < 0 then y = 1
@@ -611,7 +729,7 @@ local getPosChunk = function(x, y, passObject)
 	return passObject and map.chunk[eq] or eq
 end
 
-local getPosBlock = function(x, y)
+getPosBlock = function(x, y)
 	if x < 0 then x = 1 
 	elseif x > 32640 then x = 32639 end
 	if y < 0 then y = 1
@@ -621,63 +739,11 @@ local getPosBlock = function(x, y)
 	return map.chunk[chunk].block[1+(math.floor(y/32)%32)][1+(math.floor(x/32)%12)]
 end
 
-local ui_changeBackgroundColor = function(color)
-	local r, g, b
-	local c, m, y, k
-	local t = type(color)
-	if t == "table" then
-		if color.k then
-			c = color.c
-			m = color.m
-			y = color.y
-			k = color.k
-		else
-			r = color.r
-			g = color.g
-			b = color.b
-		end
-	elseif t == "string" or t == "number" then
-		r, g, b = HEXtoRGB(color)
-	end
-	
-	if not r then r = 255 end
-	if not g then g = 255 end
-	if not b then b = 255 end
-	
-	if not k then
-		c, m, y, k = RGBtoCMYK(r, g, b)
-	end
-	t = {c, m, y, k}
-	
-	for i=1, 4 do
-		if cmyk[i][2] then tfm.exec.removeImage(cmyk[i][2]) end
-		cmyk[i][2] = tfm.exec.addImage(cmyk[i][1], "?1", 0, 0, nil, _, _, _, t[i])
-	end
-end
-
-local bgData = {}
-
-local getTruePosMatrix = function(chunk, x, y)
+getTruePosMatrix = function(chunk, x, y)
 	return (((chunk-1)%85)*12)+(x-1), (math.floor((chunk-1)/85)*32)+(y-1)
 end
 
--- =============	  MADE FUNCTIONS 	============== --
-
-local _tfm_exec_addPhysicObject = tfm.exec.addPhysicObject
-local addPhysicObject = function(id, x, y, bodydef)
-	_tfm_exec_addPhysicObject(id, x, y, bodydef)
-	globalGrounds = globalGrounds + 1
-end
-
-local _tfm_exec_removePhysicObject = tfm.exec.removePhysicObject
-local removePhysicObject = function(id)
-	_tfm_exec_removePhysicObject(id)
-	globalGrounds = globalGrounds - 1
-end
-
--- ============= 		BLOCKS		============== -- 
-
-local spreadParticles = function(particles, amount, kind, xor, yor)
+spreadParticles = function(particles, amount, kind, xor, yor)
 	local particles = (type(particles) == "number" and {particles} or particles)
 	local ax, bx, ay, by
 	if type(xor) == "table" then
@@ -717,7 +783,7 @@ local spreadParticles = function(particles, amount, kind, xor, yor)
 	end
 end
 
-local getBlocksAround = function(self, include, cross)
+getBlocksAround = function(self, include, cross)
 	local condition
 	local blockList = {}
 	
@@ -735,32 +801,60 @@ local getBlocksAround = function(self, include, cross)
 	return blockList
 end
 
-local blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, surfacePoint)
+local _tfm_exec_addPhysicObject = tfm.exec.addPhysicObject
+addPhysicObject = function(id, x, y, bodydef)
+	_tfm_exec_addPhysicObject(id, x, y, bodydef)
+	globalGrounds = globalGrounds + 1
+end
+
+local _tfm_exec_removePhysicObject = tfm.exec.removePhysicObject
+removePhysicObject = function(id)
+	_tfm_exec_removePhysicObject(id)
+	globalGrounds = globalGrounds - 1
+end
+
+
+
+
+-- ==========	BLOCK	========== --
+
+blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, surfacePoint)
 	local xp, yp = getTruePosMatrix(chunk, x, y)
 	yp = 256-yp
+	
+	local meta = blockMetadata[type]
 	
 	local block = {
 		x = xp,
 		y = yp,
 		rx = x,
 		ry = y,
+		
 		id = ((x-1)*32) + y,
 		gid = (((chunk-1)*384)+((x-1)*32)+y),
 		act = (type == 0 or ghost) and 0 or -1,
-		dx = xp*32,
-		dy = ((256-yp)*32)+200,
-		alpha = 1.0,
+		chunk = chunk,
+
 		type = type,
-		damage = damage or 0,
-		damagePhase = 0,
-		shadowness = (ghost and not translucent) and 0.33 or 0,
-		sprite = {},
 		ghost = ghost or false,
 		glow = glow or false,
 		translucent = translucent or false,
 		mossy = mossy or false,
-		interact = type ~= 0 and blockMetadata[type].interact or false,
-		chunk = chunk
+		
+		damage = damage or 0,
+		damagePhase = 0,
+		
+		shadowness = (ghost and not translucent) and 0.33 or 0,
+		sprite = {},
+		alpha = 1.0,
+		dx = xp*32,
+		dy = ((256-yp)*32)+200,
+		
+		interact = type ~= 0 and meta.interact or false,
+		
+		onInteract = nil,--meta.onInteract or defaultOnInteract,
+		onDestroy = nil,--meta.onDestroy or defualtOnDestroy,
+		onCreate = nil--meta.onCreate or defaultOnCreate
 	}
 	
 	--[[if type ~= 0 then
@@ -770,8 +864,8 @@ local blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, c
 	end]]
 	block.sprite = {
 		[1] = {
-			block.type >= 1 and blockMetadata[block.type].sprite or nil,
-			block.type >= 1 and mossSprites[--[[map.chunk[chunk].biome]]1] or nil,
+			block.type >= 1 and meta.sprite or nil,
+			nil, --block.type >= 1 and mossSprites[--[[map.chunk[chunk].biome]]1] or nil,
 			shadowSprite,
 			nil,
 		},
@@ -781,7 +875,6 @@ local blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, c
 	
 	return block
 end
-
 local _tfm_exec_addImage = tfm.exec.addImage
 local blockDisplay = function(self)
 	if self.type ~= 0 then
@@ -811,35 +904,103 @@ local blockHide = function(self)
 	end
 end
 
-local getMidPoints = function(points, separation, toNearestInt)
-	local _math_floor = math.floor
-	local limit = #points - 1
-	local tab = {}
-	local rad = _math_floor((separation/limit)+0.5)
-	
-	for i=1, limit do
-		local ap = points[i]
-		local bp = points[i+1]
-		local se = (bp-ap)/rad
-		for j=0, rad-1 do
-			local index = (((i-1)*rad)+1)+j
-			if index <= separation then
-				tab[index] = toNearestInt and _math_floor((ap+(j*se))+0.5) or ap+(j*se)
-			else
-				break
+blockDestroy = function(self, display)
+	if self.type ~= 256 then
+		if display then blockHide(self) end
+		
+		if self.ghost then
+			self.type = 0
+		else
+			local meta = blockMetadata[self.type]
+			self.ghost = true
+			self.alpha = 1.0
+			self.shadowness = 0.33
+			self.damage = 0
+			--spreadParticles(meta.particles, 7, "drop", {self.dx+8, self.dx+24}, {self.dy+8, self.dy+24})
+			if display then blockDisplay(self) end
+		end
+		
+		chunkRefreshSegList(map.chunk[self.chunk], getBlocksAround(self, true))
+	end
+end
+
+blockCreate = function(self, type, ghost, display)
+	if type ~= 0 then
+		local meta = blockMetadata[type]
+		self.type = type
+		self.ghost = ghost or false
+		self.damage = 0
+		self.glow = meta.glow
+		self.translucent = meta.translucent
+		self.act = (type == 0 or self.ghost) and 0 or -1
+		self.mossy = false
+		self.alpha = 1.0
+		self.shadowness = ghost and 0.33 or 0
+		self.interact = meta.interact
+		
+		self.sprite[1] = {
+			meta.sprite or nil,
+			mossSprites[--[[map.chunk[chunk].biome]]1] or nil,
+			shadowSprite,
+			nil,
+		}
+		
+		if self.interact then
+			map.chunk[self.chunk].interactable[self.id] = self
+		else
+			map.chunk[self.chunk].interactable[self.id] = nil
+		end
+		
+		if display then
+			blockHide(self)
+			blockDisplay(self)
+		end
+		
+		if timer >= awaitTime then
+			chunkRefreshSegList(map.chunk[self.chunk], getBlocksAround(self, true))
+		end
+	end
+end
+
+blockDamage = function(self, amount)
+	if self.type ~= 0 and map.chunk[self.chunk].loaded then
+		local meta = blockMetadata[self.type]
+		
+		self.damage = self.damage + (amount or 2)
+		if self.damage > meta.durability then self.damage = meta.durability end
+		self.damagePhase = math.ceil((self.damage*10)/meta.durability)
+		self.sprite[1][4] = damageSprites[self.damagePhase]
+		
+		if self.damage >= meta.durability then
+			blockDestroy(self, true)
+			return true
+		else
+			if map.chunk[self.chunk].loaded then
+				blockHide(self)
+				blockDisplay(self)
 			end
 		end
 	end
 	
-	return tab
+	return false
 end
 
--- ============= 		CHUNKS		============== -- 
+blockInteract = function(self, player)
+	if self.interact then
+		local distance = distance(self.dx+16, self.dy+16, player.x, player.y)
+		if distance < 48 then
+			playerDisplayInventory(player, "craft")
+		else
+			playerAlert(player, "You're too far from the "..blockMetadata[self.type].name..".", 328, "N", 14)
+		end
+	end
+end
 
-local chunkCalculateCollisions
-local structureCreate
 
-local chunkNew = function(id, loaded, activated, biome, heightMaps)
+
+-- ==========	CHUNK	========== --
+
+chunkNew = function(id, loaded, activated, biome, heightMaps)
 	local _math_random, _blockNew = math.random, blockNew
 
 	local xc = ((id-1)%85)*12
@@ -931,20 +1092,6 @@ local chunkNew = function(id, loaded, activated, biome, heightMaps)
 	end
 	
 	return self
-end
-
-local chunkLoad = function(self)
-	if not self.loaded then
-		local _blockDisplay = blockDisplay
-		for i=1, 32 do
-			for j=1, 12 do
-				_blockDisplay(self.block[i][j])
-			end
-		end
-		
-		self.loaded = true
-		return true
-	end
 end
 
 chunkCalculateCollisions = function(self)
@@ -1039,8 +1186,43 @@ chunkCalculateCollisions = function(self)
 	
 	return segments
 end
+chunkLoad = function(self)
+	if not self.loaded then
+		local _blockDisplay = blockDisplay
+		for i=1, 32 do
+			for j=1, 12 do
+				_blockDisplay(self.block[i][j])
+			end
+		end
+		
+		self.loaded = true
+		return true
+	end
+end
 
-local chunkActivateSegment = function(self, seg)
+chunkUnload = function(self, onlyVisual)
+	local _blockHide = blockHide 
+	if self.loaded then
+		for i=1, 32 do
+			for j=1, 12 do
+				_blockHide(self.block[i][j])
+			end
+		end
+		if self.activated and not OnlyVisual then chunkDeactivate(self) end
+		self.loaded = false
+		return true
+	end
+	
+	return false
+end
+
+chunkReload = function(self)
+	chunkUnload(self, true)
+	chunkLoad(self)
+	
+	return true
+end
+chunkActivateSegment = function(self, seg)
 	local obj = self.grounds[1][seg]
 	if obj then
 		addPhysicObject(obj.id, obj.xPos, obj.yPos, obj.bodydef)
@@ -1048,14 +1230,14 @@ local chunkActivateSegment = function(self, seg)
 	end
 end
 
-local chunkActivateSegRange = function(self, segList)
+chunkActivateSegRange = function(self, segList)
 	local _chunkActivateSegment = chunkActivateSegment
 	for _, seg in next, segList do
 		_chunkActivateSegment(self, seg)
 	end
 end
 
-local chunkDeactivateSegment = function(self, seg)
+chunkDeactivateSegment = function(self, seg)
 	if seg > 0 then
 		if self.grounds[2][seg] then
 			removePhysicObject(self.grounds[2][seg])
@@ -1064,7 +1246,7 @@ local chunkDeactivateSegment = function(self, seg)
 	end
 end
 
-local chunkDeleteSegment = function(self, seg)
+chunkDeleteSegment = function(self, seg)
 	if seg > 0 then
 		if self.grounds[1][seg] then
 			local block
@@ -1086,7 +1268,7 @@ local chunkDeleteSegment = function(self, seg)
 	end
 end
 
-local chunkRefreshSegment = function(self, seg)
+chunkRefreshSegment = function(self, seg)
 	chunkDeactivateSegment(self, seg)
 	chunkDeleteSegment(self, seg)
 	local actList = chunkCalculateCollisions(self)
@@ -1095,7 +1277,7 @@ local chunkRefreshSegment = function(self, seg)
 	return true
 end
 
-local chunkRefreshSegList = function(self, blockList)
+chunkRefreshSegList = function(self, blockList)
 	local block
 	
 	for _, block in next, blockList do		
@@ -1111,9 +1293,9 @@ local chunkRefreshSegList = function(self, blockList)
 	return true
 end
 
-local chunkActivate = function(self, onlyPhysics) 
+chunkActivate = function(self, onlyPhysics) 
 	if not self.activated then
-		if self.timestamp < os.time() - 4000 then				
+		if os.time() > self.timestamp + 4000 then				
 			local _chunkActivateSegment = chunkActivateSegment
 			local grounds = self.grounds[1]
 			for _, seg in next, self.segments do
@@ -1132,9 +1314,9 @@ local chunkActivate = function(self, onlyPhysics)
 	return false
 end
 
-local chunkDeactivate = function(self)
+chunkDeactivate = function(self)
 	if self.activated then
-		if self.timestamp < os.time() - 4000 then
+		if os.time() > self.timestamp + 4000 then
 			local _chunkDeactivateSegment = chunkDeactivateSegment
 			local grounds = self.grounds[1]
 			for _, seg in next, self.segments do
@@ -1152,7 +1334,7 @@ local chunkDeactivate = function(self)
 	return false
 end
 
-local chunkDelete = function(self)
+chunkDelete = function(self)
 	local _chunkDeleteSegment = chunkDeleteSegment
 	for _, seg in next, self.segments do
 		_chunkDeleteSegment(self, seg)
@@ -1161,30 +1343,7 @@ local chunkDelete = function(self)
 	return true
 end
 
-local chunkUnload = function(self, onlyVisual)
-	local _blockHide = blockHide 
-	if self.loaded then
-		for i=1, 32 do
-			for j=1, 12 do
-				_blockHide(self.block[i][j])
-			end
-		end
-		if self.activated and not OnlyVisual then chunkDeactivate(self) end
-		self.loaded = false
-		return true
-	end
-	
-	return false
-end
-
-local chunkReload = function(self)
-	chunkUnload(self, true)
-	chunkLoad(self)
-	
-	return true
-end
-
-local chunkRefresh = function(self, update)
+chunkRefresh = function(self, update)
 	chunkDeactivate(self)
 	if update then chunkCalculateCollisions(self) end
 	chunkActivate(self, true)
@@ -1192,14 +1351,14 @@ local chunkRefresh = function(self, update)
 	return true
 end
 
-local chunkFlush = function(self)
+chunkFlush = function(self)
 	chunkUnload(self)
 	chunkActivate(self)
 	
 	return true
 end
 
-local chunkUpdate = function(self, onlyPhysic, onlyVisual)
+chunkUpdate = function(self, onlyPhysic, onlyVisual)
 	local cc = 0
 	if onlyPhysic and onlyVisual == false then
 		cc = cc + (chunkRefresh(self) and 1 or 0)
@@ -1215,212 +1374,510 @@ local chunkUpdate = function(self, onlyPhysic, onlyVisual)
 	return cc >= 1
 end 
 
-local worldRefreshChunks = function()
-	local _chunkDeactivate, chunkList = chunkDeactivate, map.chunk
-	for i=1, 680 do
-		_chunkDeactivate(chunkList[i])
-	end
 
-	for _, player in next, room.player do
-		player.timestamp = os.time()
-	end
-end
+-- ==========	PLAYER	========== --
 
-local handleChunksRefreshing = function()
-	local _os_time = os.time
-	local _pcall = pcall
-
-	local peak = modulo.runtimeLimit
-	local counter = modulo.runtimeLapse
-	local lapse = 0
-	local dif = _os_time()
+playerNew = function(playerName, spawnPoint)
+	local tfmp = tfm.get.room.playerList[playerName]
 	
-	local lcalls = 16
-	
-	local handle = map.handle
-	local chunkList = map.chunk
-	
-	local calls = 0
-	
-	local ok, result
-	
-	for i=1, #chunkList do
-		if handle[i] then
-			if counter < peak and calls < lcalls then
-				lapse = _os_time()
-				ok, result = _pcall(handle[i][2], chunkList[handle[i][1]])
-				if ok then
-					if result then
-						if handle[i][2] ~= chunkUnload then
-							calls = calls + 1
-						else
-							calls = calls + 0.5
-						end
-					end
-					
-					handle[i] = nil
-				else
-					if handle[i][2] == chunkUnload then
-						error("Issue on chunkUnload:\n\n" .. result)
-					else
-						handle[i][2] = chunkUnload
-					end
-				end
-				counter = counter + (_os_time() - lapse)
-			else
-				print(string.format("<R>Chunk timeout ~ ~ ~</R>\n<D><T>Calls:</T> %f/%d p\n<T>Runtime:</T> %d/%d ms", calls, lcalls, counter, peak))
-				map.timestamp = _os_time()
-				counter = peak
-				break
-			end
-		end
-	end
-	
-	if calls ~= 0 then
-		map.timestamp = _os_time()
-	end
-	
-	modulo.runtimeLapse = counter
-	
-	return (_os_time() - dif), calls
-end
-
-local recalculateShadows = function(origin, range)
-	local tt = os.time()
-	local self
-	local yk, sdn
-	local display = {}
-	local _distance, _table_insert, _tfm_exec_removeImage, _tfm_exec_addImage, _getPosBlock = distance, table.insert, tfm.exec.removeImage, tfm.exec.addImage, getPosBlock
-	
-	range = math.ceil(range)
-	for i=-range, range do
-		yk = origin.dy+((i*32)-1)
-		for j=-range, range do
-			self = _getPosBlock(origin.dx+((j*32)-1), yk)
-			
-			if self.type ~= 0 and not self.translucent then
-				sdn = (_distance(origin.x, origin.y, self.x, self.y)/8)*0.67
-				if sdn > 0.67 then sdn = 0.67 end
-				if (sdn < self.shadowness and i <= 0) or (sdn > self.shadowness and i >= 0) then
-					self.shadowness = sdn
-					_table_insert(display, self)
-				end
-			end
-		end
-	end
-
-	for _, self in next, display do
-		_tfm_exec_removeImage(self.sprite[2][3])
-		self.sprite[2][3] = _tfm_exec_addImage(self.sprite[1][3], "!1", self.dx, self.dy, nil, 1.0, 1.0, 0, self.shadowness*self.alpha, 0, 0)
-	end
-end
-
--- ============= 		BLOCKS		============== -- 
-
-local blockDestroy = function(self, display)
-	if self.type ~= 256 then
-		if display then blockHide(self) end
-		
-		if self.ghost then
-			self.type = 0
-		else
-			local meta = blockMetadata[self.type]
-			self.ghost = true
-			self.alpha = 1.0
-			self.shadowness = 0.33
-			self.damage = 0
-			--spreadParticles(meta.particles, 7, "drop", {self.dx+8, self.dx+24}, {self.dy+8, self.dy+24})
-			if display then blockDisplay(self) end
-		end
-		
-		chunkRefreshSegList(map.chunk[self.chunk], getBlocksAround(self, true))
-	end
-end
-
-local blockCreate = function(self, type, ghost, display)
-	if type ~= 0 then
-		local meta = blockMetadata[type]
-		self.type = type
-		self.ghost = ghost or false
-		self.damage = 0
-		self.glow = meta.glow
-		self.translucent = meta.translucent
-		self.act = (type == 0 or self.ghost) and 0 or -1
-		self.mossy = false
-		self.alpha = 1.0
-		self.shadowness = ghost and 0.33 or 0
-		self.interact = meta.interact
-		
-		self.sprite[1] = {
-			meta.sprite or nil,
-			mossSprites[--[[map.chunk[chunk].biome]]1] or nil,
-			shadowSprite,
-			nil,
+	local self = {
+		name = playerName,
+		x = tfmp.x or 0,
+		y = tfmp.y or 0,
+		tx = 0,
+		tx = 0,
+		id = tfmp.id,
+		spawnPoint = {
+			x = spawnPoint and spawnPoint.x or math.random(200, 600),
+			y = spawnPoint and spawnPoint.y or 8200
+		},
+		vx = tfmp.vx or 0,
+		vy = tfmp.vy or 0,
+		facingRight = tfmp.facingRight or true,
+		isAlive = false,
+		currentChunk = getPosChunk(spawnPoint.x, spawnPoint.y) or 342,
+		lastChunk = getPosChunk(spawnPoint.x, spawnPoint.y),
+		lastActiveChunk = getPosChunk(spawnPoint.x, spawnPoint.y),
+		timestamp = os.time(),
+		static = 0,
+		keys = {},
+		inventory = {
+			slot = {},
+			interaction = {
+				crafting = false,
+				furnacing = false
+			},
+			armor = {},
+			selectedSlot = 1,
+			slotSprite = nil,
+			owner = playerName,
+			barActive = false,
+			displaying = false
+		},
+		alert = {
+			text = nil,
+			timestamp = 0,
+			await = 1500,
+			id = -1
+		},
+		trade = {
+			whom = nil,
+			isActive = false,
+			timestamp = 0 
 		}
-		
-		if self.interact then
-			map.chunk[self.chunk].interactable[self.id] = self
-		else
-			map.chunk[self.chunk].interactable[self.id] = nil
-		end
-		
-		if display then
-			blockHide(self)
-			blockDisplay(self)
-		end
-		
-		if timer >= awaitTime then
-			chunkRefreshSegList(map.chunk[self.chunk], getBlocksAround(self, true))
+	}
+	
+	local _itemNew = itemNew
+	for i=1, 36 do
+		self.inventory.slot[i] = _itemNew(i, 0, true, 0, false)
+		if i <= 10 then
+			self.inventory.interaction[i] = _itemNew(100+i, 0, true, 0, true)
 		end
 	end
+	
+	return self
+end
+playerAlert = function(self, text, offset, color, size, await)
+	if not size then size = text:match("<font[%s+?%S+]*[%s?]*size='(%d+)'[%s?]*>") or 12 end
+	
+	local lenght = #text:gsub("<.->", "")
+	local width = math.ceil((size * lenght) + 10)
+	local xpos = 400 - (width/2)
+	
+	if not offset then offset = 200 - (size/2) end
+	
+	
+	local str = "<p align='center'><font face='Consolas' size='"..size.."'>" .. text .. "</font></p>"
+	
+	ui.addTextArea(1000, "<font color='#000000'><b>" .. str, self.name, xpos+2, offset+1, width, 0, 0x000000, 0x000000, 1.0, true)	
+	ui.addTextArea(1001, "<" .. color .. "><a href='event:alert'>" .. str, self.name, xpos, offset, width, 0, 0x000000, 0x000000, 1.0, true)
+	
+	self.alert.timestamp = os.time()
+	self.alert.await = await or 1500
 end
 
-local blockDamage = function(self, amount)
-	if self.type ~= 0 and map.chunk[self.chunk].loaded then
-		local meta = blockMetadata[self.type]
-		
-		self.damage = self.damage + (amount or 2)
-		if self.damage > meta.durability then self.damage = meta.durability end
-		self.damagePhase = math.ceil((self.damage*10)/meta.durability)
-		self.sprite[1][4] = damageSprites[self.damagePhase]
-		
-		if self.damage >= meta.durability then
-			blockDestroy(self, true)
-			return true
-		else
-			if map.chunk[self.chunk].loaded then
-				blockHide(self)
-				blockDisplay(self)
-			end
-		end
+playerCleanAlert = function(self)
+	if self.alert.timestamp and os.time() > self.alert.timestamp + self.alert.await then
+		eventTextAreaCallback(1001, self.name, "clear")
+		self.alert.timestamp = nil
+		return true
 	end
 	
 	return false
 end
 
-structureCreate = function(id, xOrigin, yOrigin, overwrite)
-	local struct = structureData[id]
-	local xrow, tile, block
-	local xpos, ypos
-	local _getPosBlock = getPosBlock
-	local type = 2*math.random(2)
-	for y in next, struct do
-		xrow = struct[y]
-		for x in next, xrow do
-			tile = xrow[x]
-			if tile[1] ~= 0 then
-				block = _getPosBlock(xOrigin + (tile[3]*32), yOrigin - (tile[4]*32))
-				if block.type == 0 or overwrite then blockCreate(block, tile[1]+type, tile[2], false) end
+playerUpdateInventoryBar = function(self)
+	local _itemDisplay = itemDisplay
+	for i=1, 9 do
+		_itemDisplay(self.inventory.slot[27+i], self.name, true)
+	end
+end
+
+playerGetInventorySlot = function(self, id)
+	if id then
+		if id < 100 then
+			if id >= 1 and id <= 36 then
+				return self.inventory.slot[id]
+			end
+		else
+			if id >= 101 and id <= 110 then
+				return self.inventory.interaction[id-100]
+			end
+		end
+	end
+	
+	return nil
+end
+
+playerChangeSlot = function(self, slot)
+	local onBar = self.inventory.barActive	
+	local dx, dy
+	
+	if not slot or not ((slot >= 1 and slot <= 36) or (slot > 100 and slot <= 110)) then slot = 1 end
+	self.inventory.selectedSlot = slot
+	
+	local select = playerGetInventorySlot(self, slot)
+	dx, dy = itemReturnDisplayPositions(select, self.name)
+	
+	if self.inventory.slotSprite then tfm.exec.removeImage(self.inventory.slotSprite) end
+	if dx and dy then
+		local scale = (slot == 110 and (self.inventory.interaction.crafting == 9 and 1.5 or 1.0) or 1.0)
+		self.inventory.slotSprite = tfm.exec.addImage(
+			"17e4653605e.png", ":10",
+			dx-9, (dy-12)+((onBar and slot ~= 110) and 34 or 0),
+			self.name,
+			scale, scale,
+			0.0, 1.0,
+			0.0, 0.0
+		)
+	end
+	
+	if select.itemId ~= 0 then	
+		playerAlert(self, blockMetadata[select.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
+	else
+		eventTextAreaCallback(1001, self.name, "clear")
+	end
+end
+
+inventorySlotsDisplay = function(self, limit)
+	local _itemDisplay = itemDisplay
+	for i=1, 36 do
+		_itemDisplay(self.slot[i], self.owner)
+		if i <= limit or i == 10 then
+			_itemDisplay(self.interaction[i], self.owner)
+		end
+	end
+end
+
+playerDisplayInventory = function(self, type)
+	local identifier, lim
+	self.inventory.barActive = false
+	
+	self.inventory.displaying = true
+	
+	if type == "inventory" then
+		self.inventory.interaction.crafting = 4
+		identifier = "17eb175a263.png"
+	elseif type == "craft" then
+		self.inventory.interaction.crafting = 9
+		identifier = "17eb1755684.png"
+	elseif type == "furnace" then
+		self.inventory.interaction.furnacing = true
+		identifier = "17eb175ee63.png"
+	end
+	
+	lim = self.inventory.interaction.crafting or 2
+		
+	if self.inventory.sprite then tfm.exec.removeImage(self.inventory.sprite) end
+	
+	self.inventory.sprite = tfm.exec.addImage(
+		identifier, ":1",
+		234, 42,
+		self.name,
+		1.0, 1.0,
+		0.0, 1.0,
+		0.0, 0.0
+	)
+	playerChangeSlot(self, self.inventory.selectedSlot)
+	
+	inventorySlotsDisplay(self.inventory, lim)
+end
+
+playerDisplayInventoryBar = function(self)
+	self.inventory.barActive = true
+	
+	if self.inventory.sprite then tfm.exec.removeImage(self.inventory.sprite) end
+	
+	self.inventory.sprite = tfm.exec.addImage(
+		"17e464e9c5d.png", ":1",
+		245, 350,
+		self.name,
+		1.0, 1.0,
+		0.0, 0.85,
+		0.0, 0.0
+	)
+	
+	if self.inventory.selectedSlot <= 27 then
+		playerChangeSlot(self, 27 + ((self.inventory.selectedSlot-1)%9)+1)
+	elseif self.inventory.selectedSlot > 100 then
+		playerChangeSlot(self, 28)
+	else
+		playerChangeSlot(self, self.inventory.selectedSlot)
+	end
+	playerUpdateInventoryBar(self)
+end
+
+playerHideInventory = function(self)
+	self.inventory.interaction.crafting = false
+	self.inventory.interaction.furnacing = false
+	self.inventory.displaying = false
+	local item
+	local _itemHide, _itemRemove, _inventoryInsertItem = itemHide, itemRemove, inventoryInsertItem
+	
+	for i=1, 36 do
+		_itemHide(self.inventory.slot[i], self.name)
+		if i <= 10 then
+			item = self.inventory.interaction[i]
+			_itemHide(item, self.name)
+			if i ~= 10 then _inventoryInsertItem(self.inventory, item.itemId, item.amount, false, false) end
+			_itemRemove(self.inventory.interaction[i], self.name)
+		end
+	end
+	
+	playerDisplayInventoryBar(self)
+end
+playerPlaceBlock = function(self, x, y)
+	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
+		local item = self.inventory.slot[self.inventory.selectedSlot]
+		
+		if item.stackable and item.amount >= 1 then
+			local _getPosBlock = getPosBlock
+			local block = _getPosBlock(x, y-200)
+			
+			if block.type == 0 then
+				local ldis = 80
+				local xdis = math.abs(self.x-(block.dx+16))
+				local ydis = math.abs(self.y-(block.dy+16))
+				if xdis < ldis and ydis < ldis then
+					local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
+					local around, areAround	= false, 4
+					for i=1, 4 do
+						if blocksAround[i].type ~= 0 then
+							around = true
+							break
+						elseif blocksAround[i].type == 0 then
+							areAround = areAround - 1
+							if i==4 then around = false end
+						end
+					end
+					
+					if around then
+						blockCreate(block, item.itemId, false, true)
+						if inventoryExtractItem(self.inventory, item.itemId, 1, true) then tfm.exec.setPlayerScore(self.name, -1, true) end
+						playerUpdateInventoryBar(self)
+						--recalculateShadows(block, 9*(areAround/4))
+					end
+				end
+			end
+		end
+	end
+end
+
+playerDestroyBlock = function(self, x, y)
+	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
+		local _getPosBlock = getPosBlock
+		local block = _getPosBlock(x, y-200)
+		if block.type ~= 0 then
+			local ldis = 80
+			local xdis = math.abs(self.x-(block.dx+16))
+			local ydis = math.abs(self.y-(block.dy+16))
+			if xdis < ldis and ydis < ldis then
+				local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
+				local notAround, around = 4, false
+				for i=1, 4 do
+					if blocksAround[i].type == 0 or blocksAround[i].ghost then
+						around = false
+						break
+					elseif blocksAround[i].type ~= 0 or blocksAround[i].ghost then
+						notAround = notAround + 1
+						if i == 4 then around = true end
+					end
+				end
+				
+				if not around then
+					local drop = blockMetadata[block.type].drop
+					local destroyed = blockDamage(block, 10)
+					if destroyed then
+						if drop ~= 0 and block.type == 0 then
+							if inventoryInsertItem(self.inventory, drop, 1, true) then tfm.exec.setPlayerScore(self.name, 1, true) end
+							playerUpdateInventoryBar(self)
+						end
+						--recalculateShadows(block, 9*(notAround/4))
+					end
+				end
+			end
+		end
+	end
+end
+
+playerInitTrade = function(self, whom, activate)
+	if whom and self ~= whom then
+		self.trade.whom = whom
+		self.trade.timestamp = os.time()
+		self.trade.isActive = activate or false
+	end
+end
+
+playerCancelTrade = function(self)
+	self.trade.whom = nil
+	self.trade.timestamp = os.time()
+	self.trade.isActive = false
+end
+
+playerBlockInteract = function(self, block)
+	if block.type ~= 0 then
+		if block.interact then
+			blockInteract(block, self)
+		else
+			playerAlert(self, blockMetadata[block.type].name, 328, "D", 14)
+		end
+	end
+end
+playerStatic = function(self, activate)
+	local playerName = self.name
+	if activate then
+		tfm.exec.setPlayerGravityScale(playerName, 0)
+		tfm.exec.freezePlayer(playerName, true, false)
+		tfm.exec.movePlayer(playerName, 0, 0, true, 0, 0, true)
+		self.static = os.time() + 4000
+	else
+		tfm.exec.freezePlayer(playerName, false, false)
+		tfm.exec.setPlayerGravityScale(playerName, 1.0)
+		self.static = nil
+	end
+end
+
+playerCorrectPosition = function(self)
+	if self.x >= 0 and self.x <= 32640 and self.y > 200 then
+		if self.lastActiveChunk ~= self.currentChunk and timer > awaitTime then
+			return
+			--[[local displacement = ((self.lastActiveChunk-1)%85)
+			local side = displacement - ((self.currentChunk-1)%85)
+			if side ~= 0 then
+				local xpos = (displacement * 12) + (side < 0 and 12 or 1)
+				local ypos = 256 - map.heightMaps[1][xpos]
+				self.x = xpos * 32
+				self.y = (ypos * 32) + 200
+				tfm.exec.movePlayer(self.name, self.x, self.y, false, 0, -8)
+			end]]
+		else
+			local isTangible = function(block) return (block.type ~= 0 and not block.ghost) end
+			local _getPosBlock = getPosBlock
+			if isTangible(_getPosBlock(self.x, self.y-200)) then
+				local xpos, ypos, nxj, nyj, pxj, offset
+
+				for i=1, 256 do
+					offset = i*32
+					nxj = _getPosBlock(self.x-offset, self.y-200)
+					nyj = _getPosBlock(self.x, self.y-offset-200)
+					pxj = _getPosBlock(self.x+offset, self.y-200)
+					if not isTangible(nyj) then
+						self.y = self.y-offset
+						break
+					elseif not isTangible(nxj) then 
+						self.x = self.x-offset
+						break
+					elseif not isTangible(pxj) then
+						self.x = self.x+offset
+						break
+					end
+				end
+				tfm.exec.movePlayer(self.name, self.x, self.y, false, 0, -8)
 			end
 		end
 	end
 end 
 
--- =============== 		INVENTORY		============== --
+playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
+	local tfmp = tfm.get.room.playerList[self.name]
+	if timer >= awaitTime then
+		self.x = x or tfmp.x
+		self.y = y or tfmp.y
+	end
+	if timer < awaitTime or tfmp.y < 0 then
+		self.x = map.spawnPoint.x
+		self.y = map.spawnPoint.y
+		tfm.exec.movePlayer(self.name, self.x, self.y)
+	end
+	
+	self.tx = (self.x/32) - 510
+	self.ty = 256 - (self.y/32)
+	
+	self.vx = vx or tfmp.vx
+	self.vy = vy or tfmp.vy
+	self.facingRight = facingRight or tfmp.facingRight
+	self.isAlive = isAlive or (tfmp.isDead and false or true)
+	
+	if self.isAlive then
+		playerCorrectPosition(self)
+		
+		local realCurrentChunk = getPosChunk(self.x, self.y-200) or getPosChunk(map.spawnPoint.x, map.spawnPoint.y-200)
+		if realCurrentChunk ~= self.currentChunk then
+			self.lastChunk = self.currentChunk
+		end
+		
+		self.currentChunk = realCurrentChunk
+		if map.chunk[realCurrentChunk].activated then
+			self.lastActiveChunk = realCurrentChunk
+		else
+			playerStatic(self)
+		end
+		
+		if timer >= awaitTime then
+		
+		ui.updateTextArea(777,
+			string.format(
+				"<font size='18' face='Consolas'><CH2>%s</CH2></font>\n<D><font size='13' face='Consolas'><b>Pos:</b> x %d, y %d\n<b>Last Chunk:</b> %d\n<b>Current Chunk:</b> %d (%s)\n<b>Global Grounds:</b> %d",
+				self.name,
+				self.tx, self.ty,
+				self.lastChunk,
+				self.currentChunk,
+				(self.currentChunk >= 1 and self.currentChunk <= 680) and (map.chunk[self.currentChunk].activated and "+" or "-") or "NaN",
+				globalGrounds
+			), 
+			self.name
+		)
+		
+		end
+	end
+end
 
-local playerGetInventorySlot
+playerReachNearChunks = function(self, range, forced)
+	local cl, dcl, clj, dclj
+	if self.currentChunk and self.lastChunk then
+		for i=-1, 1 do
+			cl = self.lastChunk+(85*i)
+			dcl = self.currentChunk+(85*i)
+			for j=-2, 2 do
+				clj = cl+j
+				dclj = dcl+j
+				
+				local crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+				
+				if forced then
+					if dclj >= 1 and dclj <= 680 then
+						map.handle[dclj] = {dclj, crossCondition and chunkFlush or chunkReload}
+					end
+				else
+					if clj >= 1 and clj <= 680 then
+						if not map.handle[clj] then map.handle[clj] = {clj, chunkUnload} end
+					end
+					
+					if dclj >= 1 and dclj <= 680 then
+						if (map.handle[dclj] and (map.handle[dclj][2] == chunkLoad or map.handle[dclj][2] == chunkUnload)) or not map.handle[dclj] then
+							map.handle[dclj] = {dclj, crossCondition and chunkUpdate or chunkLoad}
+						end
+					end
+				end
+			end
+		end
+		
+		self.timestamp = os.time()
+	end
+end
 
-local itemNew = function(id, itemId, stackable, amount, interact)
+playerLoopUpdate = function(self)
+	if self.isAlive then
+		playerActualizeInfo(self)
+			
+		if modulo.loading then
+			playerReachNearChunks(self)
+			
+			if map.chunk[self.currentChunk].activated then
+				awaitTime = -1000
+			else
+				if timer >= awaitTime - 1000 then
+					awaitTime = awaitTime + 500
+				end
+			end
+		else
+			if os.time > self.timestamp + 2000 then
+				playerReachNearChunks(self)
+			end
+		end
+	
+		if self.static and _os_time() > self.static then
+			playerStatic(self, false)
+		end
+	end
+	
+	playerCleanAlert(self)
+end
+
+
+-- ==========	ITEM	========== --
+
+itemNew = function(id, itemId, stackable, amount, interact)
 	local self = {
 		id = id,
 		itemId = itemId or 0,
@@ -1451,7 +1908,7 @@ local itemNew = function(id, itemId, stackable, amount, interact)
 	return self
 end
 
-local itemCreate = function(self, itemId, amount, stackable)
+itemCreate = function(self, itemId, amount, stackable)
 	self.itemId = itemId
 	self.amount = amount or 1
 	self.stackable = stackable or true
@@ -1460,7 +1917,7 @@ local itemCreate = function(self, itemId, amount, stackable)
 	return self
 end
 
-local itemRemove = function(self, playerName)
+itemRemove = function(self, playerName)
 	local item = self
 	
 	self.itemId = 0
@@ -1475,8 +1932,7 @@ local itemRemove = function(self, playerName)
 	
 	return item
 end
-
-local itemAdd = function(self, amount)
+itemAdd = function(self, amount)
 	if self.itemId ~= 0 then
 		if self.stackable then
 			local fixedAmount = self.amount + amount
@@ -1488,7 +1944,7 @@ local itemAdd = function(self, amount)
 	return false
 end
 
-local itemSubstract = function(self, amount)
+itemSubstract = function(self, amount)
 	if self.itemId ~= 0 then
 		if self.stackable then
 			local fixedAmount = self.amount - amount
@@ -1498,207 +1954,7 @@ local itemSubstract = function(self, amount)
 	end
 end
 
-local itemReturnDisplayPositions = function(self, playerName)
-	local player = room.player[playerName]
-	local dx, dy
-	
-	if type(self.dx) == "number" then
-		dx = self.dx
-	else
-		if player.inventory.interaction.crafting then
-			dx = self.dx.craft[player.inventory.interaction.crafting]
-		elseif player.inventory.interaction.furnacing then
-			dx = self.dx.furnace
-		end
-	end
-	
-	if type(self.dy) == "number" then
-		dy = self.dy
-	else
-		if player.inventory.interaction.crafting then
-			dy = self.dy.craft[player.inventory.interaction.crafting]
-		elseif player.inventory.interaction.furnacing then
-			dy = self.dy.furnace
-		end
-	end
-	
-	return dx, dy
-end
-
-local itemDisplay = function(self, playerName, onInventoryBar)
-	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
-	
-	local dx, dy = itemReturnDisplayPositions(self, playerName)
-	local scale = (self.id == 110 and (room.player[playerName].inventory.interaction.crafting == 9 and 1.5 or 1.0) or 1.0)
-	dy = dy + (onInventoryBar and 34 or 0)
-	local _ui_addTextArea, _ui_removeTextArea = ui.addTextArea, ui.removeTextArea
-	
-	if self.itemId ~= 0 then
-		self.sprite[2] = tfm.exec.addImage(
-			self.sprite[1],
-			":"..(self.id+10),
-			dx, dy,
-			playerName,
-			scale/1.8823, scale/1.8823,
-			0, 1.0,
-			0, 0
-		)
-		
-		if self.stackable then
-			_ui_addTextArea(
-				self.id+60,
-				string.format("<p align='center'><font size='"..(13*scale).."'><VP><b>%d", self.amount),
-				playerName,
-				dx-(9*scale), dy,
-				34*scale, 0,
-				0x000000, 0x000000,
-				1.0, true
-			)
-		else
-			_ui_removeTextArea(self.id+60, playerName)
-		end
-	else
-		self.sprite[2] = nil
-		_ui_removeTextArea(self.id+60, playerName)
-	end
-	
-	_ui_addTextArea(
-		self.id+110,
-		"<textformat leftmargin='1' rightmargin='1'><a href='event:"..(self.id > 100 and "interaction" or "inventory").."'>\n\n\n\n\n\n\n\n\n\n\n\n", 
-		playerName, 
-		dx - (10*scale), dy - (10*scale), --350
-		37*scale, 32*scale, 
-		0x000001, 0x000001, 
-		0, true
-	)
-	
-	return {dx, dy}
-end
-
-local itemHide = function(self, playerName)
-	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
-	self.sprite[2] = nil
-	
-	ui.removeTextArea(self.id+60, playerName)
-	ui.removeTextArea(self.id+110, playerName)
-end
-
-local stackFindItem = function(self, itemId, canStack)
-	for _, item in next, self do
-		if item.itemId == itemId then
-			if canStack then
-				if item.stackable and item.amount < 64 then
-					return item
-				end
-			else
-				return item
-			end
-		end
-	end
-
-	return nil
-end
-
-local inventoryFindItem = function(self, itemId, canStack, onInteraction)
-	local stack = (onInteraction and self.interaction or self.slot)
-	
-	return stackFindItem(stack, itemId, canStack)
-end
-
-local inventoryCreateItem = function(self, itemId, amount, targetSlot)
-	local slot = targetSlot or inventoryFindItem(self, 0)
-
-	if slot then
-		return itemCreate(slot, itemId, amount, (amount > 0))
-	end
-	
-	return nil
-end
-
-local inventoryInsertItem = function(self, itemId, amount, targetSlot, interaction)
-	local item = inventoryFindItem(self, itemId, true, false)
-	
-	if targetSlot then
-		if type(targetSlot) == "boolean" then
-			item = playerGetInventorySlot(room.player[self.owner], self.selectedSlot)
-		elseif type(targetSlot) == "number" then
-			item = playerGetInventorySlot(room.player[self.owner], targetSlot)
-		elseif type(targetSlot) == "table" then
-			item = targetSlot
-		end
-		
-		if item.itemId ~= 0 then
-			if (item.stackable and item.amount + amount > 64) or item.itemId ~= itemId then
-				item = inventoryFindItem(self, itemId, true, interaction)
-			end
-		--[[else
-			item = inventoryFindItem(self, itemId, true)]]
-		end
-	end
-	
-	if item then
-		if item.stackable and item.amount + amount <= 64 and item.itemId == itemId then
-			itemAdd(item, amount)
-			return item
-		else
-			return inventoryCreateItem(self, itemId, amount, item)
-		end
-	else
-		return inventoryCreateItem(self, itemId, amount, item)
-	end
-	
-	return item
-end
-
-local inventoryExtractItem = function(self, itemId, amount, targetSlot)
-	local item = inventoryFindItem(self, itemId)
-	
-	if targetSlot then
-		if type(targetSlot) == "boolean" then
-			item = playerGetInventorySlot(room.player[self.owner], self.selectedSlot)
-		elseif type(targetSlot) == "number" then
-			item = playerGetInventorySlot(room.player[self.owner], targetSlot)
-		elseif type(targetSlot) == "table" then
-			item = targetSlot 
-		end
-	end
-	
-	if item then
-		if item.stackable then
-			local fx = item.amount - (amount or 1)
-			if fx <= 0 then
-				return itemRemove(item, self.owner)
-			else
-				return itemSubstract(item, amount)
-			end
-		else
-			return itemRemove(item, self.owner)
-		end
-	end
-	
-	return item
-end
-
-local inventoryExchangeItemsPosition = function(item1, item2)
-	local exchange = {
-		itemId = item1.itemId,
-		stackable = item1.stackable,
-		amount = item1.amount,
-		sprite = item1.sprite
-	}
-	
-	item1.itemId = item2.itemId
-	item1.stackable = item2.stackable
-	item1.amount = item2.amount
-	item1.sprite = item2.sprite
-	
-	item2.itemId = exchange.itemId
-	item2.stackable = exchange.stackable
-	item2.amount = exchange.amount
-	item2.sprite = exchange.sprite
-end
-
-local itemMove = function(self, direction, amount, playerName)
+itemMove = function(self, direction, amount, playerName)
 	local targetPlayer = playerName
 	local sourcePlayer = playerName
 	
@@ -1759,8 +2015,7 @@ local itemMove = function(self, direction, amount, playerName)
 								end
 							end
 						end
-					end
-			--				
+					end		
 				end
 			end
 		end
@@ -1768,490 +2023,333 @@ local itemMove = function(self, direction, amount, playerName)
 	
 	return self, direction, newSlot
 end
-
--- =============== 		PLAYER		============== --
-
-local playerNew = function(playerName, spawnPoint)
-	local tfmp = tfm.get.room.playerList[playerName]
+itemReturnDisplayPositions = function(self, playerName)
+	local player = room.player[playerName]
+	local dx, dy
 	
-	local self = {
-		name = playerName,
-		x = tfmp.x or 0,
-		y = tfmp.y or 0,
-		tx = 0,
-		tx = 0,
-		id = tfmp.id,
-		spawnPoint = {
-			x = spawnPoint and spawnPoint.x or math.random(200, 600),
-			y = spawnPoint and spawnPoint.y or 8200
-		},
-		vx = tfmp.vx or 0,
-		vy = tfmp.vy or 0,
-		facingRight = tfmp.facingRight or true,
-		isAlive = false,
-		currentChunk = getPosChunk(spawnPoint.x, spawnPoint.y) or 342,
-		lastChunk = getPosChunk(spawnPoint.x, spawnPoint.y),
-		lastActiveChunk = getPosChunk(spawnPoint.x, spawnPoint.y),
-		timestamp = os.time(),
-		static = 0,
-		keys = {},
-		inventory = {
-			slot = {},
-			interaction = {
-				crafting = false,
-				furnacing = false
-			},
-			armor = {},
-			selectedSlot = 1,
-			slotSprite = nil,
-			owner = playerName,
-			barActive = false,
-			displaying = false
-		},
-		alert = {
-			text = nil,
-			timestamp = 0,
-			await = 1500,
-			id = -1
-		},
-		trade = {
-			whom = nil,
-			isActive = false,
-			timestamp = 0 
-		}
-	}
-	
-	local _itemNew = itemNew
-	for i=1, 36 do
-		self.inventory.slot[i] = _itemNew(i, 0, true, 0, false)
-		if i <= 10 then
-			self.inventory.interaction[i] = _itemNew(100+i, 0, true, 0, true)
-		end
-	end
-	
-	return self
-end
-
-local playerAlert = function(self, text, offset, color, size, await)
-	if not size then size = text:match("<font[%s+?%S+]*[%s?]*size='(%d+)'[%s?]*>") or 12 end
-	
-	local lenght = #text:gsub("<.->", "")
-	local width = math.ceil((size * lenght) + 10)
-	local xpos = 400 - (width/2)
-	
-	if not offset then offset = 200 - (size/2) end
-	
-	
-	local str = "<p align='center'><font face='Consolas' size='"..size.."'>" .. text .. "</font></p>"
-	
-	ui.addTextArea(1000, "<font color='#000000'><b>" .. str, self.name, xpos+2, offset+1, width, 0, 0x000000, 0x000000, 1.0, true)	
-	ui.addTextArea(1001, "<" .. color .. "><a href='event:alert'>" .. str, self.name, xpos, offset, width, 0, 0x000000, 0x000000, 1.0, true)
-	
-	self.alert.timestamp = os.time()
-	self.alert.await = await or 1500
-end
-
-local playerCleanAlert = function(self)
-	if self.alert.timestamp and os.time() > self.alert.timestamp + self.alert.await then
-		eventTextAreaCallback(1001, self.name, "clear")
-		self.alert.timestamp = nil
-		return true
-	end
-	
-	return false
-end
-
-local playerCorrectPosition = function(self)
-	if self.x >= 0 and self.x <= 32640 and self.y > 200 then
-		if self.lastActiveChunk ~= self.currentChunk and timer > awaitTime then
-			local displacement = ((self.lastActiveChunk-1)%85)
-			local side = displacement - ((self.currentChunk-1)%85)
-			if side ~= 0 then
-				local xpos = (displacement * 12) + (side < 0 and 12 or 1)
-				local ypos = 256 - map.heightMaps[1][xpos]
-				self.x = xpos * 32
-				self.y = (ypos * 32) + 200
-				tfm.exec.movePlayer(self.name, self.x, self.y, false, 0, -8)
-			end
-		else
-			local isTangible = function(block) return (block.type ~= 0 and not block.ghost) end
-			local _getPosBlock = getPosBlock
-			if isTangible(_getPosBlock(self.x, self.y-200)) then
-				local xpos, ypos, nxj, nyj, pxj, offset
-
-				for i=1, 256 do
-					offset = i*32
-					nxj = _getPosBlock(self.x-offset, self.y-200)
-					nyj = _getPosBlock(self.x, self.y-offset-200)
-					pxj = _getPosBlock(self.x+offset, self.y-200)
-					if not isTangible(nyj) then
-						self.y = self.y-offset
-						break
-					elseif not isTangible(nxj) then 
-						self.x = self.x-offset
-						break
-					elseif not isTangible(pxj) then
-						self.x = self.x+offset
-						break
-					end
-				end
-				tfm.exec.movePlayer(self.name, self.x, self.y, false, 0, -8)
-			end
-		end
-	end
-end 
-
-local playerStatic = function(self, activate)
-	local playerName = self.name
-	if activate then
-		tfm.exec.setPlayerGravityScale(playerName, 0)
-		tfm.exec.freezePlayer(playerName, true, false)
-		tfm.exec.movePlayer(playerName, 0, 0, true, 0, 0, true)
-		self.static = os.time()
+	if type(self.dx) == "number" then
+		dx = self.dx
 	else
-		tfm.exec.freezePlayer(playerName, false, false)
-		tfm.exec.setPlayerGravityScale(playerName, 1.0)
-		self.static = nil
+		if player.inventory.interaction.crafting then
+			dx = self.dx.craft[player.inventory.interaction.crafting]
+		elseif player.inventory.interaction.furnacing then
+			dx = self.dx.furnace
+		end
 	end
+	
+	if type(self.dy) == "number" then
+		dy = self.dy
+	else
+		if player.inventory.interaction.crafting then
+			dy = self.dy.craft[player.inventory.interaction.crafting]
+		elseif player.inventory.interaction.furnacing then
+			dy = self.dy.furnace
+		end
+	end
+	
+	return dx, dy
 end
 
-local playerUpdate = function(self, x, y, vx, vy, facingRight, isAlive)
-	local tfmp = tfm.get.room.playerList[self.name]
-	if timer >= awaitTime then
-		self.x = x or tfmp.x
-		self.y = y or tfmp.y
-	end
-	if timer < awaitTime or tfmp.y < 0 then
-		self.x = map.spawnPoint.x
-		self.y = map.spawnPoint.y
-		tfm.exec.movePlayer(self.name, self.x, self.y)
-	end
+itemDisplay = function(self, playerName, onInventoryBar)
+	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
 	
-	self.tx = (self.x/32) - 510
-	self.ty = 256 - (self.y/32)
+	local dx, dy = itemReturnDisplayPositions(self, playerName)
+	local scale = (self.id == 110 and (room.player[playerName].inventory.interaction.crafting == 9 and 1.5 or 1.0) or 1.0)
+	dy = dy + (onInventoryBar and 34 or 0)
+	local _ui_addTextArea, _ui_removeTextArea = ui.addTextArea, ui.removeTextArea
 	
-	self.vx = vx or tfmp.vx
-	self.vy = vy or tfmp.vy
-	self.facingRight = facingRight or tfmp.facingRight
-	self.isAlive = isAlive or (tfmp.isDead and false or true)
-	
-	if self.isAlive then
-		playerCorrectPosition(self)
-		
-		local realCurrentChunk = getPosChunk(self.x, self.y-200) or getPosChunk(map.spawnPoint.x, map.spawnPoint.y-200)
-		if realCurrentChunk ~= self.currentChunk then
-			self.lastChunk = self.currentChunk
-		end
-		
-		self.currentChunk = realCurrentChunk
-		if map.chunk[realCurrentChunk].activated then
-			self.lastActiveChunk = realCurrentChunk
-		else
-			playerStatic(self)
-		end
-		
-		ui.updateTextArea(777,
-			string.format(
-				"<font size='18' face='Consolas'><CH2>%s</CH2></font>\n<D><font size='13' face='Consolas'><b>Pos:</b> x %d, y %d\n<b>Last Chunk:</b> %d\n<b>Current Chunk:</b> %d (%s)\n<b>Global Grounds:</b> %d",
-				self.name,
-				self.tx, self.ty,
-				self.lastChunk,
-				self.currentChunk,
-				(self.currentChunk >= 1 and self.currentChunk <= 680) and (map.chunk[self.currentChunk].activated and "+" or "-") or "NaN",
-				globalGrounds
-			), 
-			self.name
+	if self.itemId ~= 0 then
+		self.sprite[2] = tfm.exec.addImage(
+			self.sprite[1],
+			":"..(self.id+10),
+			dx, dy,
+			playerName,
+			scale/1.8823, scale/1.8823,
+			0, 1.0,
+			0, 0
 		)
-	end
-end
-
-local playerUpdateNearChunks = function(self, range, forced)
-	local cl, dcl, clj, dclj
-	if self.currentChunk then
-		for i=-1, 1 do
-			cl = self.lastChunk+(85*i)
-			dcl = self.currentChunk+(85*i)
-			for j=-2, 2 do
-				clj = cl+j
-				dclj = dcl+j
-				
-				local crossCondition = globalGrounds < 512 and (j==0 or i==0) or (j==0 and i==0)
-				
-				if forced then
-					if dclj >= 1 and dclj <= 680 then
-						map.handle[dclj] = {dclj, crossCondition and chunkFlush or chunkReload}
-					end
-				else
-					if clj >= 1 and clj <= 680 then
-						if not map.handle[clj] then map.handle[clj] = {clj, chunkUnload} end
-					end
-					
-					if dclj >= 1 and dclj <= 680 then
-						if (map.handle[dclj] and (map.handle[dclj][2] == chunkLoad or map.handle[dclj][2] == chunkUnload)) or not map.handle[dclj] then
-							map.handle[dclj] = {dclj, crossCondition and chunkUpdate or chunkLoad}
-						end
-					end
-				end
-			end
-		end
 		
-		self.timestamp = os.time()
-	end
-end
-
-local playerUpdateInventoryBar = function(self)
-	local _itemDisplay = itemDisplay
-	for i=1, 9 do
-		_itemDisplay(self.inventory.slot[27+i], self.name, true)
-	end
-end
-
-playerGetInventorySlot = function(self, id)
-	if id then
-		if id < 100 then
-			if id >= 1 and id <= 36 then
-				return self.inventory.slot[id]
-			end
+		if self.stackable then
+			_ui_addTextArea(
+				self.id+60,
+				string.format("<p align='center'><font size='"..(13*scale).."'><VP><b>%d", self.amount),
+				playerName,
+				dx-(9*scale), dy,
+				34*scale, 0,
+				0x000000, 0x000000,
+				1.0, true
+			)
 		else
-			if id >= 101 and id <= 110 then
-				return self.inventory.interaction[id-100]
+			_ui_removeTextArea(self.id+60, playerName)
+		end
+	else
+		self.sprite[2] = nil
+		_ui_removeTextArea(self.id+60, playerName)
+	end
+	
+	_ui_addTextArea(
+		self.id+110,
+		"<textformat leftmargin='1' rightmargin='1'><a href='event:"..(self.id > 100 and "interaction" or "inventory").."'>\n\n\n\n\n\n\n\n\n\n\n\n", 
+		playerName, 
+		dx - (10*scale), dy - (10*scale), --350
+		37*scale, 32*scale, 
+		0x000001, 0x000001, 
+		0, true
+	)
+	
+	return {dx, dy}
+end
+
+itemHide = function(self, playerName)
+	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
+	self.sprite[2] = nil
+	
+	ui.removeTextArea(self.id+60, playerName)
+	ui.removeTextArea(self.id+110, playerName)
+end
+
+
+
+-- ==========	INVENTORY	========== --
+
+stackFindItem = function(self, itemId, canStack)
+	for _, item in next, self do
+		if item.itemId == itemId then
+			if canStack then
+				if item.stackable and item.amount < 64 then
+					return item
+				end
+			else
+				return item
 			end
 		end
+	end
+
+	return nil
+end
+
+inventoryFindItem = function(self, itemId, canStack, onInteraction)
+	local stack = (onInteraction and self.interaction or self.slot)
+	
+	return stackFindItem(stack, itemId, canStack)
+end
+
+inventoryCreateItem = function(self, itemId, amount, targetSlot)
+	local slot = targetSlot or inventoryFindItem(self, 0)
+
+	if slot then
+		return itemCreate(slot, itemId, amount, (amount > 0))
 	end
 	
 	return nil
 end
 
-local playerChangeSlot = function(self, slot)
-	local onBar = self.inventory.barActive	
-	local dx, dy
+inventoryInsertItem = function(self, itemId, amount, targetSlot, interaction)
+	local item = inventoryFindItem(self, itemId, true, false)
 	
-	if not slot or not ((slot >= 1 and slot <= 36) or (slot > 100 and slot <= 110)) then slot = 1 end
-	self.inventory.selectedSlot = slot
-	
-	local select = playerGetInventorySlot(self, slot)
-	dx, dy = itemReturnDisplayPositions(select, self.name)
-	
-	if self.inventory.slotSprite then tfm.exec.removeImage(self.inventory.slotSprite) end
-	if dx and dy then
-		local scale = (slot == 110 and (self.inventory.interaction.crafting == 9 and 1.5 or 1.0) or 1.0)
-		self.inventory.slotSprite = tfm.exec.addImage(
-			"17e4653605e.png", ":10",
-			dx-9, (dy-12)+((onBar and slot ~= 110) and 34 or 0),
-			self.name,
-			scale, scale,
-			0.0, 1.0,
-			0.0, 0.0
-		)
-	end
-	
-	if select.itemId ~= 0 then	
-		playerAlert(self, blockMetadata[select.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
-	else
-		eventTextAreaCallback(1001, self.name, "clear")
-	end
-end
-
-local inventorySlotsDisplay = function(self, limit)
-	local _itemDisplay = itemDisplay
-	for i=1, 36 do
-		_itemDisplay(self.slot[i], self.owner)
-		if i <= limit or i == 10 then
-			_itemDisplay(self.interaction[i], self.owner)
+	if targetSlot then
+		if type(targetSlot) == "boolean" then
+			item = playerGetInventorySlot(room.player[self.owner], self.selectedSlot)
+		elseif type(targetSlot) == "number" then
+			item = playerGetInventorySlot(room.player[self.owner], targetSlot)
+		elseif type(targetSlot) == "table" then
+			item = targetSlot
 		end
-	end
-end
-
-local playerDisplayInventory = function(self, type)
-	local identifier, lim
-	self.inventory.barActive = false
-	
-	self.inventory.displaying = true
-	
-	if type == "inventory" then
-		self.inventory.interaction.crafting = 4
-		identifier = "17eb175a263.png"
-	elseif type == "craft" then
-		self.inventory.interaction.crafting = 9
-		identifier = "17eb1755684.png"
-	elseif type == "furnace" then
-		self.inventory.interaction.furnacing = true
-		identifier = "17eb175ee63.png"
-	end
-	
-	lim = self.inventory.interaction.crafting or 2
 		
-	if self.inventory.sprite then tfm.exec.removeImage(self.inventory.sprite) end
-	
-	self.inventory.sprite = tfm.exec.addImage(
-		identifier, ":1",
-		234, 42,
-		self.name,
-		1.0, 1.0,
-		0.0, 1.0,
-		0.0, 0.0
-	)
-	playerChangeSlot(self, self.inventory.selectedSlot)
-	
-	inventorySlotsDisplay(self.inventory, lim)
-end
-
-local playerDisplayInventoryBar = function(self)
-	self.inventory.barActive = true
-	
-	if self.inventory.sprite then tfm.exec.removeImage(self.inventory.sprite) end
-	
-	self.inventory.sprite = tfm.exec.addImage(
-		"17e464e9c5d.png", ":1",
-		245, 350,
-		self.name,
-		1.0, 1.0,
-		0.0, 0.85,
-		0.0, 0.0
-	)
-	
-	if self.inventory.selectedSlot <= 27 then
-		playerChangeSlot(self, 27 + ((self.inventory.selectedSlot-1)%9)+1)
-	elseif self.inventory.selectedSlot > 100 then
-		playerChangeSlot(self, 28)
-	else
-		playerChangeSlot(self, self.inventory.selectedSlot)
-	end
-	playerUpdateInventoryBar(self)
-end
-
-local playerHideInventory = function(self)
-	self.inventory.interaction.crafting = false
-	self.inventory.interaction.furnacing = false
-	self.inventory.displaying = false
-	local item
-	local _itemHide, _itemRemove, _inventoryInsertItem = itemHide, itemRemove, inventoryInsertItem
-	
-	for i=1, 36 do
-		_itemHide(self.inventory.slot[i], self.name)
-		if i <= 10 then
-			item = self.inventory.interaction[i]
-			_itemHide(item, self.name)
-			if i ~= 10 then _inventoryInsertItem(self.inventory, item.itemId, item.amount, false, false) end
-			_itemRemove(self.inventory.interaction[i], self.name)
+		if item.itemId ~= 0 then
+			if (item.stackable and item.amount + amount > 64) or item.itemId ~= itemId then
+				item = inventoryFindItem(self, itemId, true, interaction)
+			end
+		--[[else
+			item = inventoryFindItem(self, itemId, true)]]
 		end
 	end
 	
-	playerDisplayInventoryBar(self)
+	if item then
+		if item.stackable and item.amount + amount <= 64 and item.itemId == itemId then
+			itemAdd(item, amount)
+			return item
+		else
+			return inventoryCreateItem(self, itemId, amount, item)
+		end
+	else
+		return inventoryCreateItem(self, itemId, amount, item)
+	end
+	
+	return item
 end
 
-local playerPlaceBlock = function(self, x, y)
-	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-		local item = self.inventory.slot[self.inventory.selectedSlot]
-		
-		if item.stackable and item.amount >= 1 then
-			local _getPosBlock = getPosBlock
-			local block = _getPosBlock(x, y-200)
-			
-			if block.type == 0 then
-				local ldis = 80
-				local xdis = math.abs(self.x-(block.dx+16))
-				local ydis = math.abs(self.y-(block.dy+16))
-				if xdis < ldis and ydis < ldis then
-					local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
-					local around, areAround	= false, 4
-					for i=1, 4 do
-						if blocksAround[i].type ~= 0 then
-							around = true
-							break
-						elseif blocksAround[i].type == 0 then
-							areAround = areAround - 1
-							if i==4 then around = false end
+inventoryExtractItem = function(self, itemId, amount, targetSlot)
+	local item = inventoryFindItem(self, itemId)
+	
+	if targetSlot then
+		if type(targetSlot) == "boolean" then
+			item = playerGetInventorySlot(room.player[self.owner], self.selectedSlot)
+		elseif type(targetSlot) == "number" then
+			item = playerGetInventorySlot(room.player[self.owner], targetSlot)
+		elseif type(targetSlot) == "table" then
+			item = targetSlot 
+		end
+	end
+	
+	if item then
+		if item.stackable then
+			local fx = item.amount - (amount or 1)
+			if fx <= 0 then
+				return itemRemove(item, self.owner)
+			else
+				return itemSubstract(item, amount)
+			end
+		else
+			return itemRemove(item, self.owner)
+		end
+	end
+	
+	return item
+end
+
+inventoryExchangeItemsPosition = function(item1, item2)
+	local exchange = {
+		itemId = item1.itemId,
+		stackable = item1.stackable,
+		amount = item1.amount,
+		sprite = item1.sprite
+	}
+	
+	item1.itemId = item2.itemId
+	item1.stackable = item2.stackable
+	item1.amount = item2.amount
+	item1.sprite = item2.sprite
+	
+	item2.itemId = exchange.itemId
+	item2.stackable = exchange.stackable
+	item2.amount = exchange.amount
+	item2.sprite = exchange.sprite
+end
+
+
+-- ==========	WORLDHANDLE	========== --
+
+worldRefreshChunks = function()
+	local _chunkDeactivate, chunkList = chunkDeactivate, map.chunk
+	for i=1, 680 do
+		_chunkDeactivate(chunkList[i])
+	end
+
+	for _, player in next, room.player do
+		player.timestamp = os.time()
+	end
+end
+
+handleChunksRefreshing = function()
+	local _os_time = os.time
+	local _pcall = pcall
+
+	local peak = modulo.runtimeLimit
+	local counter = modulo.runtimeLapse
+	local lapse = 0
+	local dif = _os_time()
+	
+	local lcalls = 16
+	
+	local handle = map.handle
+	local chunkList = map.chunk
+	
+	local calls = 0
+	
+	local ok, result
+	
+	for i=1, #chunkList do
+		if handle[i] then
+			if counter < peak and calls < lcalls then
+				lapse = _os_time()
+				ok, result = _pcall(handle[i][2], chunkList[handle[i][1]])
+				if ok then
+					if result then
+						if handle[i][2] ~= chunkUnload then
+							calls = calls + 1
+						else
+							calls = calls + 0.5
 						end
 					end
 					
-					if around then
-						blockCreate(block, item.itemId, false, true)
-						if inventoryExtractItem(self.inventory, item.itemId, 1, true) then tfm.exec.setPlayerScore(self.name, -1, true) end
-						playerUpdateInventoryBar(self)
-						--recalculateShadows(block, 9*(areAround/4))
+					handle[i] = nil
+				else
+					if handle[i][2] == chunkUnload then
+						error("Issue on chunkUnload:\n\n" .. result)
+					else
+						handle[i][2] = chunkUnload
 					end
+				end
+				counter = counter + (_os_time() - lapse)
+			else
+				print(string.format("<R>Chunk timeout ~ ~ ~</R>\n<D><T>Calls:</T> %f/%d p\n<T>Runtime:</T> %d/%d ms", calls, lcalls, counter, peak))
+				map.timestamp = _os_time()
+				counter = peak
+				break
+			end
+		end
+	end
+	
+	if calls ~= 0 then
+		map.timestamp = _os_time()
+	end
+	
+	modulo.runtimeLapse = counter
+	
+	return (_os_time() - dif), calls
+end
+
+recalculateShadows = function(origin, range)
+	local tt = os.time()
+	local self
+	local yk, sdn
+	local display = {}
+	local _distance, _table_insert, _tfm_exec_removeImage, _tfm_exec_addImage, _getPosBlock = distance, table.insert, tfm.exec.removeImage, tfm.exec.addImage, getPosBlock
+	
+	range = math.ceil(range)
+	for i=-range, range do
+		yk = origin.dy+((i*32)-1)
+		for j=-range, range do
+			self = _getPosBlock(origin.dx+((j*32)-1), yk)
+			
+			if self.type ~= 0 and not self.translucent then
+				sdn = (_distance(origin.x, origin.y, self.x, self.y)/8)*0.67
+				if sdn > 0.67 then sdn = 0.67 end
+				if (sdn < self.shadowness and i <= 0) or (sdn > self.shadowness and i >= 0) then
+					self.shadowness = sdn
+					_table_insert(display, self)
 				end
 			end
 		end
 	end
+
+	for _, self in next, display do
+		_tfm_exec_removeImage(self.sprite[2][3])
+		self.sprite[2][3] = _tfm_exec_addImage(self.sprite[1][3], "!1", self.dx, self.dy, nil, 1.0, 1.0, 0, self.shadowness*self.alpha, 0, 0)
+	end
 end
 
-local playerDestroyBlock = function(self, x, y)
-	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-		local _getPosBlock = getPosBlock
-		local block = _getPosBlock(x, y-200)
-		if block.type ~= 0 then
-			local ldis = 80
-			local xdis = math.abs(self.x-(block.dx+16))
-			local ydis = math.abs(self.y-(block.dy+16))
-			if xdis < ldis and ydis < ldis then
-				local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
-				local notAround, around = 4, false
-				for i=1, 4 do
-					if blocksAround[i].type == 0 or blocksAround[i].ghost then
-						around = false
-						break
-					elseif blocksAround[i].type ~= 0 or blocksAround[i].ghost then
-						notAround = notAround + 1
-						if i == 4 then around = true end
-					end
-				end
-				
-				if not around then
-					local drop = blockMetadata[block.type].drop
-					local destroyed = blockDamage(block, 10)
-					if destroyed then
-						if drop ~= 0 and block.type == 0 then
-							if inventoryInsertItem(self.inventory, drop, 1, true) then tfm.exec.setPlayerScore(self.name, 1, true) end
-							playerUpdateInventoryBar(self)
-						end
-						--recalculateShadows(block, 9*(notAround/4))
-					end
-				end
+
+structureCreate = function(id, xOrigin, yOrigin, overwrite)
+	local struct = structureData[id]
+	local xrow, tile, block
+	local xpos, ypos
+	local _getPosBlock = getPosBlock
+	local type = 2*math.random(2)
+	for y in next, struct do
+		xrow = struct[y]
+		for x in next, xrow do
+			tile = xrow[x]
+			if tile[1] ~= 0 then
+				block = _getPosBlock(xOrigin + (tile[3]*32), yOrigin - (tile[4]*32))
+				if block.type == 0 or overwrite then blockCreate(block, tile[1]+type, tile[2], false) end
 			end
 		end
 	end
-end
+end 
 
-local playerInitTrade = function(self, whom, activate)
-	if whom and self ~= whom then
-		self.trade.whom = whom
-		self.trade.timestamp = os.time()
-		self.trade.isActive = activate or false
-	end
-end
-
-local playerCancelTrade = function(self)
-	self.trade.whom = nil
-	self.trade.timestamp = os.time()
-	self.trade.isActive = false
-end
-
-local blockInteract = function(self, player)
-	if self.interact then
-		local distance = distance(self.dx+16, self.dy+16, player.x, player.y)
-		if distance < 48 then
-			playerDisplayInventory(player, "craft")
-		else
-			playerAlert(player, "You're too far from the "..blockMetadata[self.type].name..".", 328, "N", 14)
-		end
-	end
-end
-
-local playerBlockInteract = function(self, block)
-	if block.type ~= 0 then
-		if block.interact then
-			blockInteract(block, self)
-		else
-			playerAlert(self, blockMetadata[block.type].name, 328, "D", 14)
-		end
-	end
-end
-
--- =============== 		START		============== --
-
-local getFixedSpawn = function()
+getFixedSpawn = function()
 	local point, surfp
 	for i=0, 7 do
 		point = (637-(85*i))
@@ -2266,7 +2364,7 @@ local getFixedSpawn = function()
 	return {x=16320, y=184}
 end
 
-local generateBoundGrounds = function()
+generateBoundGrounds = function()
 	local gc = 0
 	local bodydef = {type=14, width=32, height=3000}
 	local xpos, ypos
@@ -2285,22 +2383,32 @@ local generateBoundGrounds = function()
 	end
 end
 
-local createNewWorld = function(heightMaps)
+createNewWorld = function(heightMaps)
 	local _math_random, _math_floor, _math_ceil = math.random, math.floor, math.ceil
-	local _chunkNew, _structureCreate = chunkNew, structureCreate
+	local _chunkNew, _structureCreate, _chunkCalculateCollisions = chunkNew, structureCreate, chunkCalculateCollisions
 	local _ui_updateTextArea, _tfm_exec_addImage, _tfm_exec_removeImage = ui.updateTextArea, tfm.exec.addImage, tfm.exec.removeImage
 	local _string_format = string.format
 	local chunkList = map.chunk
 	
-	local locale = {}
+	local count = 0
+	
+	local bar
+	
+	local angle = math.rad(270)
+	
+	local updatePercentage = function()
+		local percentage = _math_round(count/13.60, 2)
+		_ui_updateTextArea(999, _string_format("<p align='center'><font size='48' face='Consolas'><CEP>Loading...\n<D>%f%%</font></p>", percentage), nil)
+		if bar then _tfm_exec_removeImage(bar) end
+		bar = _tfm_exec_addImage(--[["17e1314ec5f.png"]]"17d441f9c0f.png", "~1", 60, 350, nil, 2.0, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
+		
+		count = count + 1
+	end
 	
 	local point, surfp
 	for i=1, 680 do
 		chunkList[i] = _chunkNew(i, false, false, 1, heightMaps)
-		
-		surfp = heightMaps[1][_math_floor(i*1.5)]
-		_ui_updateTextArea(999, _string_format("<p align='center'><font size='48'>Loading...\n%d/680</font>\n<font size='16'>%d</font></p>", i, surfp), nil)
-		locale[i] = _tfm_exec_addImage("17e1314ec5f.png", ":"..i, 60+i, 400-_math_ceil(surfp/2), nil, 0.03125, 4.0, 0, 1.0, 0.0, 0.0)
+		updatePercentage()
 	end
 	
 	map.spawnPoint = getFixedSpawn()
@@ -2313,15 +2421,16 @@ local createNewWorld = function(heightMaps)
 	end
 	
 	for i=1, 680 do
-		_tfm_exec_removeImage(locale[i])
-		chunkCalculateCollisions(chunkList[i])
+		_chunkCalculateCollisions(chunkList[i])
+		updatePercentage()
 	end
 	
+	_tfm_exec_removeImage(bar)
 
 	math.randomseed(os.time())
 end
 
-local startPlayer = function(playerName, spawnPoint)
+startPlayer = function(playerName, spawnPoint)
 	if not room.player[playerName] then
 		room.player[playerName] = playerNew(playerName, spawnPoint)
 		local _system_bindKeyboard = system.bindKeyboard
@@ -2334,16 +2443,30 @@ local startPlayer = function(playerName, spawnPoint)
 		
 		tfm.exec.setAieMode(true, 5.0, playerName)
 		eventPlayerDied(playerName)
-		if timer > 3000 then
-			ui.addTextArea(777, "", playerName, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
-			playerUpdateNearChunks(room.player[playerName], 1, true)
-		end
+		
+		ui.addTextArea(777, "", playerName, 5, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+	
 		playerDisplayInventoryBar(room.player[playerName])
 		playerChangeSlot(room.player[playerName], 28)
+		
+		if timer > 3000 then
+			playerReachNearChunks(room.player[playerName], 1, true)
+		end
 	end
 end
 
--- =============== 		EVENTS		============== --
+
+
+
+-- ==========	EVENTS	========== --
+
+local eventLoadFinished = function()
+	ui.removeTextArea(999, nil)
+	tfm.exec.removeImage(modulo.loading)
+	modulo.loading = nil
+	tfm.exec.setWorldGravity(0, 10)
+	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+end
 
 function eventLoop(elapsed, remaining)
 	local _os_time = os.time
@@ -2352,13 +2475,7 @@ function eventLoop(elapsed, remaining)
 		if timer < awaitTime then
 			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings' size='64'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
 		else
-			ui.removeTextArea(999, nil)
-			tfm.exec.removeImage(modulo.loading)
-			modulo.loading = nil
-			
-			tfm.exec.setWorldGravity(0, 10)
-			
-			ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+			eventLoadFinished()
 		end
 	end
 	
@@ -2368,22 +2485,22 @@ function eventLoop(elapsed, remaining)
 		else
 			for _, player in next, room.player do
 				if player.isAlive then
-					playerUpdate(player)
+					playerActualizeInfo(player)
 					
-					do
-						playerUpdateNearChunks(player)
-						
-						if modulo.loading then
-							if map.chunk[player.currentChunk].activated then
-								awaitTime = -1000
-							else
-								if timer >= awaitTime - 1000 then awaitTime = awaitTime + 500 end
+					playerReachNearChunks(player)
+					
+					if modulo.loading then
+						if map.chunk[player.currentChunk].activated then
+							awaitTime = -1000
+						else
+							if timer >= awaitTime - 1000 then
+								awaitTime = awaitTime + 500
 							end
 						end
-						
-						if player.static and _os_time() > player.static + 4000 then
-							playerStatic(player, false)
-						end
+					end
+					
+					if player.static and _os_time() > player.static then
+						playerStatic(player, false)
 					end
 				end
 				
@@ -2412,10 +2529,21 @@ function eventLoop(elapsed, remaining)
 				end
 
 			end
+			--[[if tt >= 3 then
+				map.loadingTotalTime = map.loadingTotalTime + tt
+				map.totalLoads = map.totalLoads + 1
+				map.loadingAverageTime = _math_round(map.loadingTotalTime / map.totalLoads, 2)
+				if room.isTribe then
+					local color
+					if tt < 10 then color = "VP" elseif tt >= 10 and tt < 20 then color = "CEP" else color = "R" end
+					print(string.format("<V>[Event Loop]</V> Chunks updated in <%s>%d ms</%s> (avg. %f ms)", color, tt, color, map.loadingAverageTime))
+				end
+			end]]
 		end
 	end
 	
 	if globalGrounds > 512 then
+		--print("<CEP> Warning! <R>" .. globalGrounds .. "</R> is above the safe physic objects count!")--worldRefreshChunks()
 		if globalGrounds >= 712 then -- 512
 			error(string.format("Physic system destroyed: <CEP>Limit of physic objects reached:</CEP> <R>%d/512", globalGrounds), 2)
 		end
@@ -2456,7 +2584,7 @@ function eventKeyboard(playerName, key, down, x, y)
 		end
 		
 		if room.player[playerName] and timer > awaitTime then
-			if room.player[playerName].isAlive then playerUpdate(room.player[playerName], x, y, _, _, key < 4 and (key%2==0 and key==2 or nil) or nil) end
+			if room.player[playerName].isAlive then playerActualizeInfo(room.player[playerName], x, y, _, _, key < 4 and (key%2==0 and key==2 or nil) or nil) end
 		end
 	end
 end
@@ -2468,6 +2596,11 @@ function eventMouse(playerName, x, y)
 				local isKeyActive = room.player[playerName].keys
 				if isKeyActive[19] then -- debug
 					local block = getPosBlock(x, y-200)
+					if isKeyActive[18] then
+						printt(map.chunk[block.chunk].grounds[1][block.act])
+					else
+						printt(block)
+					end
 				elseif isKeyActive[18] then
 					playerBlockInteract(room.player[playerName], getPosBlock(x, y-200))
 				elseif isKeyActive[17] then
@@ -2490,7 +2623,7 @@ end
 function eventPlayerRespawn(playerName)
 	if room.player[playerName] then
 		tfm.exec.movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
-		playerUpdate(room.player[playerName], map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
+		playerActualizeInfo(room.player[playerName], map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
 	end
 end
 
@@ -2501,7 +2634,7 @@ function eventNewPlayer(playerName)
 end
 
 function eventPlayerLeft(playerName)
-	room.player[playerName] = nil--.isAlive = false
+	room.player[playerName] = nil
 end
 
 function eventChatCommand(playerName, command)
@@ -2516,6 +2649,30 @@ function eventChatCommand(playerName, command)
 		eventTextAreaCallback(0, playerName, "help")
 	elseif args[1] == "seed" then
 		ui.addPopup(169, 0, string.format("<p align='center'>World's seed:\n%d", map.seed), playerName, 300, 180, 200, true)
+	elseif args[1] == "tp" then
+		if room.isTribe then
+			local pa = tonumber(args[2])
+			local pb = tonumber(args[3])
+			
+			local withinRange = function(a, b) return (a >= 0 and a <= 32640) and (b >= 0 and b <= 8392) end
+			
+			if pa and pb then
+				if withinRange(pa, pb) then tfm.exec.movePlayer(playerName, pa, pb) end
+			elseif not pa or not pb then
+				local pl = room.player[ args[2] ]
+				if pl then
+					if pl.isAlive then
+						pa = pl.x
+						pb = pl.y
+						if withinRange(pa, pb) then tfm.exec.movePlayer(playerName, pa, pb) end
+					end
+				end
+			end
+		end
+	elseif args[1] == "debug" then
+		local player = room.player[args[2]]
+		
+		if player then printt(player) end
 	end
 end
 
@@ -2530,8 +2687,8 @@ local eventPlayerHudInteraction = function(self)
 		
 		for i=1, self.inventory.interaction.crafting do
 			m = i
-			if self.inventory.interaction.crafting == 4 and i > 2 then
-				if i == 3 then k = k + 1 end
+			if self.inventory.interaction.crafting == 4 and i == 3 then
+				k = k + 1
 			end
 			
 			if lookup then
@@ -2570,8 +2727,6 @@ local eventPlayerHudInteraction = function(self)
 	elseif self.inventory.interaction.furnacing then
 		return nil
 	end
-	
-	return nil
 end
 
 function eventTextAreaCallback(textAreaId, playerName, eventName)
@@ -2610,15 +2765,20 @@ function eventTextAreaCallback(textAreaId, playerName, eventName)
 						itemDisplay(origin, source, room.player[source].inventory.barActive)
 					end
 					
+					--[[if eventName == "inventory"	then
+						return true
+					else]]
+
+					
 					if eventName == "interaction" or origin.id > 100 or select.id > 100 then -- == 110	
 						local display, remove = eventPlayerHudInteraction(room.player[source])
 						if display and remove then
 							if origin.id == 110 and select.id ~= origin.id then
 							
-								for i in next, remove do
+								for _, element in next, remove do
 									inventoryExtractItem(
 										room.player[source].inventory, 
-										remove[i].itemId, 1, remove[i]
+										element.itemId, 1, element
 									)
 									itemRemove(origin, source)
 								end
@@ -2655,25 +2815,70 @@ end
 
 function eventPopupAnswer(popupId, playerName, answer)
 	return nil
+	--[[
+	if room.player[playerName] then
+		if popupId == 10 then
+			if room.player[playerName].trade.timestamp < os.time() - 15000 then
+				if room.player[answer] then
+					if playerName ~= answer then
+						if not room.player[answer].trade.whom then
+							playerInitTrade(room.player[playerName], answer)
+							playerInitTrade(room.player[answer], playerName)
+							ui.addPopup(11, 1, "<p align='center'>Do you want to trade with <D>"..(playerName).."</D>?", answer, 325, 100, 150, true)
+						else
+							ui.addPopup(10, 0, "<p align='center'>The user <CEP>"..(answer).."</CEP> is currently trading with another person.", playerName, 250, 180, 300, true)
+						end
+					else
+						ui.addPopup(10, 0, "<p align='center'>You can't trade with yourself.", playerName, 250, 180, 300, true)
+					end
+				else
+					ui.addPopup(10, 0, "<p align='center'>Sorry, the user <CEP>"..(answer).."</CEP> is invalid or does not exist.", playerName, 250, 180, 300, true)
+				end
+			else
+				ui.addPopup(10, 0,
+				string.format("<p align='center'>You have to wait %ds in order to start a new trade.", ((room.player[playerName].trade.timestamp + 15000)-os.time())/1000), playerName, 250, 180, 300, true)
+			end
+		elseif popupId == 11 then
+			if answer == "yes" then
+				room.player[playerName].trade.isActive = true
+				room.player[room.player[playerName].trade.whom].trade.isActive = true
+				
+				ui.addTextArea (1002, "<b><font face='Consolas'><p align='right'><CEP>Trading with</CEP> <D>"..(room.player[playerName].trade.whom).."</D>", playerName, 600, 20, 200, 0, 0x000000, 0x000000, 1.0, true)
+				ui.addTextArea (1002, "<b><font face='Consolas'><p align='right'><CEP>Trading with</CEP> <D>"..(playerName).."</D>", room.player[playerName].trade.whom, 600, 20, 200, 0, 0x000000, 0x000000, 1.0, true)
+			elseif answer == "no" then
+				ui.addPopup(10, 0, "<p align='center'><D>"..(playerName).."</D> has <R>rejected</R> the trade.", room.player[playerName].trade.whom, 250, 180, 300, true)
+				eventPopupAnswer(11, playerName, "CANCEL")
+			elseif answer == "canceled" then
+				ui.addPopup(10, 0, "<p align='center'><D>"..(playerName).."</D> has <CEP>canceled</CEP> the trade.", room.player[playerName].trade.whom, 250, 180, 300, true)
+				ui.addPopup(10, 0, "<p align='center'>Trade has been canceled successfully.", playerName, 250, 180, 300, true)
+				ui.removeTextArea(1002, room.player[playerName].trade.whom)
+				ui.removeTextArea(1002, playerName)
+				
+				eventPopupAnswer(11, playerName, "CANCEL")
+			end
+			
+			if answer == "CANCEL" then
+				playerCancelTrade(room.player[room.player[playerName].trade.whom])
+				playerCancelTrade(room.player[playerName])
+			end
+		end
+	end]]
 end
 
 function eventNewGame()
 	generateBoundGrounds()
 	tfm.exec.setGameTime(0)
 	ui.setMapName(modulo.name)
-	--ui.setBackgroundColor("#45a3bf")
 	tfm.exec.setWorldGravity(0, 0)
 	
 	for name, _ in next, tfm.get.room.playerList do
 		eventNewPlayer(name)
-		--playerUpdate(room.player[name])
 		eventPlayerRespawn(name)
 	end
-	
-	--tfm.exec.addImage("17e464d1bd5.png", "!512", 0, 8, nil, 32, 32, 0, 0.33, 0, 0)
 end
 
--- =============== 		MAIN		============== --
+
+-- ==========	MAIN	========== --
 
 local main = function()	
 	for i=1, 512 do
@@ -2693,23 +2898,25 @@ local main = function()
 		end
 	end
 	
-	tfm.exec.disableAfkDeath(true)
-	tfm.exec.disableAutoNewGame(true)
-	tfm.exec.disableAutoScore(true)
-	tfm.exec.disableAutoShaman(true)
-	tfm.exec.disableAutoTimeLeft(true)
-	tfm.exec.disablePhysicalConsumables(true)
-	
-	system.disableChatCommandDisplay(nil)
-	
-	
-	if not room.isTribe then
-		tfm.exec.setRoomMaxPlayers(8)
-		tfm.exec.setPlayerSync(nil) 
-		tfm.exec.disableDebugCommand(true)
+	do
+		tfm.exec.disableAfkDeath(true)
+		tfm.exec.disableAutoNewGame(true)
+		tfm.exec.disableAutoScore(true)
+		tfm.exec.disableAutoShaman(true)
+		tfm.exec.disableAutoTimeLeft(true)
+		tfm.exec.disablePhysicalConsumables(true)
+		
+		system.disableChatCommandDisplay(nil)
+		
+		
+		if not room.isTribe then
+			tfm.exec.setRoomMaxPlayers(8)
+			tfm.exec.setPlayerSync(nil) 
+			tfm.exec.disableDebugCommand(true)
+		end
 	end
 	
-	map.seed = os.time() or 2^31
+	map.seed = -1881899978--os.time() or 2^31
 	math.randomseed(map.seed)
 	local heightMaps = {}
 	
@@ -2753,3 +2960,5 @@ xpcall(game, function(err)
 		end
 	end
 end)
+
+--16/03/2022 12:56:08
