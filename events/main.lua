@@ -1,7 +1,11 @@
 local eventLoadFinished = function()
+  modulo.loading = false
+  
 	ui.removeTextArea(999, nil)
-	tfm.exec.removeImage(modulo.loading)
-	modulo.loading = nil
+  for _, img in next, modulo.loadImg[2] do
+    tfm.exec.removeImage(img)
+  end
+
 	tfm.exec.setWorldGravity(0, 10)
 	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
 end
@@ -10,8 +14,18 @@ function eventLoop(elapsed, remaining)
 	local _os_time = os.time
 
 	if modulo.loading then
-		if timer < awaitTime then
-			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings' size='64'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
+    if timer == 0 then
+      tfm.exec.removeImage(modulo.loadImg[2][3])
+      ui.addTextArea(999,
+      "", nil,
+      50, 200,
+      700, 0,
+      0x000000,
+      0x000000,
+      1.0, true
+    )
+		elseif timer <= awaitTime then
+			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
 		else
 			eventLoadFinished()
 		end
@@ -48,8 +62,10 @@ function eventLoop(elapsed, remaining)
 			if _os_time() > map.timestamp + 4000 then
 				if modulo.runtimeLapse > 1 then
 					print("<R><b>Runtime reset:</b> <D>" .. modulo.runtimeLapse)
+          modulo.timeout = false
 				end
 				modulo.runtimeLapse = 0
+        
 			end
 			
 			do
@@ -64,6 +80,7 @@ function eventLoop(elapsed, remaining)
 							playerAlert(player, "<b>Module Timeout", nil, "CEP", 48, 3900)
 						end
 					end
+          modulo.timeout = true
 				end
 
 			end

@@ -29,11 +29,16 @@ local room = {
 local modulo = {
 	creator = "Indexinel#5948",
 	name = "Micecraft",
-	loading = nil,
-	sprite = "15150c10e92.png",
+	loading = true,
+  loadImg = {
+    [1] = {"17f94a1608c.png", "17f94a1cb39.png"},
+    [2] = {}
+  },
+	sprite = "17f949fcbb4.png",
 	runtimeLapse = 0,
 	runtimeMax = 0,
-	runtimeLimit = 0
+	runtimeLimit = 0,
+  timeout = false
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -68,12 +73,6 @@ local map = {
 		glow = 1024--2000
 	}]]
 }
-
-do
-	ui.addTextArea(999 , "<font size='64'><p align='center'>Initializing...</p></font>", nil, 100, 150, 600, 200, 0x000000, 0x000000, 1.0, true)
-	modulo.loading = tfm.exec.addImage(modulo.sprite, "~999", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
-end
-
 local structureData = {
 	[1] = { -- {type, ghost, xoff, yoff}
 		{{0},{72,true,-1,7},{72,false,0,7},{72,true,1,7},{0}},
@@ -1708,7 +1707,7 @@ playerStatic = function(self, activate)
 	if activate then
 		tfm.exec.setPlayerGravityScale(playerName, 0)
 		tfm.exec.freezePlayer(playerName, true, false)
-		tfm.exec.movePlayer(playerName, 0, 0, true, 0, 0, true)
+		tfm.exec.movePlayer(playerName, 0, 0, true, -self.vx, -self.vy, false)
 		self.static = os.time() + 4000
 	else
 		tfm.exec.freezePlayer(playerName, false, false)
@@ -1789,6 +1788,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		self.currentChunk = realCurrentChunk
 		if map.chunk[realCurrentChunk].activated then
 			self.lastActiveChunk = realCurrentChunk
+      if self.static and not modulo.timeout then playerStatic(self, false) end
 		else
 			playerStatic(self)
 		end
@@ -2398,9 +2398,9 @@ createNewWorld = function(heightMaps)
 	
 	local updatePercentage = function()
 		local percentage = _math_round(count/13.60, 2)
-		_ui_updateTextArea(999, _string_format("<p align='center'><font size='48' face='Consolas'><CEP>Loading...\n<D>%f%%</font></p>", percentage), nil)
+		_ui_updateTextArea(999, _string_format("<p align='left'><font size='16' face='Consolas'>Loading...\t<D>%f%%</D></font></p>", percentage), nil)
 		if bar then _tfm_exec_removeImage(bar) end
-		bar = _tfm_exec_addImage(--[["17e1314ec5f.png"]]"17d441f9c0f.png", "~1", 60, 350, nil, 2.0, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
+		bar = _tfm_exec_addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
 		
 		count = count + 1
 	end
@@ -2461,9 +2461,13 @@ end
 -- ==========	EVENTS	========== --
 
 local eventLoadFinished = function()
+  modulo.loading = false
+  
 	ui.removeTextArea(999, nil)
-	tfm.exec.removeImage(modulo.loading)
-	modulo.loading = nil
+  for _, img in next, modulo.loadImg[2] do
+    tfm.exec.removeImage(img)
+  end
+
 	tfm.exec.setWorldGravity(0, 10)
 	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
 end
@@ -2472,8 +2476,18 @@ function eventLoop(elapsed, remaining)
 	local _os_time = os.time
 
 	if modulo.loading then
-		if timer < awaitTime then
-			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings' size='64'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
+    if timer == 0 then
+      tfm.exec.removeImage(modulo.loadImg[2][3])
+      ui.addTextArea(999,
+      "", nil,
+      50, 200,
+      700, 0,
+      0x000000,
+      0x000000,
+      1.0, true
+    )
+		elseif timer <= awaitTime then
+			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
 		else
 			eventLoadFinished()
 		end
@@ -2510,8 +2524,10 @@ function eventLoop(elapsed, remaining)
 			if _os_time() > map.timestamp + 4000 then
 				if modulo.runtimeLapse > 1 then
 					print("<R><b>Runtime reset:</b> <D>" .. modulo.runtimeLapse)
+          modulo.timeout = false
 				end
 				modulo.runtimeLapse = 0
+        
 			end
 			
 			do
@@ -2526,6 +2542,7 @@ function eventLoop(elapsed, remaining)
 							playerAlert(player, "<b>Module Timeout", nil, "CEP", 48, 3900)
 						end
 					end
+          modulo.timeout = true
 				end
 
 			end
@@ -2881,6 +2898,28 @@ end
 -- ==========	MAIN	========== --
 
 local main = function()	
+  do
+    ui.addTextArea(999,
+      "<font size='16' face='Consolas'><p align='left'>Initializing...</p></font>", nil,
+      55, 320,
+      690, 0,
+      0x000000,
+      0x000000,
+      1.0, true
+    )
+    modulo.loading = true
+  
+    --local scl = 0.8
+    modulo.loadImg[2] = {
+      tfm.exec.addImage(modulo.sprite, "&777", 74, 50, nil, 1.0, 1.0, 0, 1.0, 0, 0),
+      tfm.exec.addImage(modulo.loadImg[1][1], ":42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0),
+      tfm.exec.addImage(modulo.loadImg[1][2], ":69", 55, 348, nil, 1.0, 1.0, 0, 1.0, 0, 0)
+    }
+    
+    tfm.exec.setGameTime(0)
+    ui.setMapName(modulo.name)
+  end
+  
 	for i=1, 512 do
 		if not blockMetadata[i] then
 			blockMetadata[i] = {
@@ -2916,7 +2955,7 @@ local main = function()
 		end
 	end
 	
-	map.seed = -1881899978--os.time() or 2^31
+	map.seed = os.time() or 2^31
 	math.randomseed(map.seed)
 	local heightMaps = {}
 	
@@ -2961,4 +3000,4 @@ xpcall(game, function(err)
 	end
 end)
 
---16/03/2022 12:56:08
+--16/03/2022 17:33:09

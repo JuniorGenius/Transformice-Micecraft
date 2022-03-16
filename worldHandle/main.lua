@@ -166,9 +166,9 @@ createNewWorld = function(heightMaps)
 	
 	local updatePercentage = function()
 		local percentage = _math_round(count/13.60, 2)
-		_ui_updateTextArea(999, _string_format("<p align='center'><font size='48' face='Consolas'><CEP>Loading...\n<D>%f%%</font></p>", percentage), nil)
+		_ui_updateTextArea(999, _string_format("<p align='left'><font size='16' face='Consolas'>Loading...\t<D>%f%%</D></font></p>", percentage), nil)
 		if bar then _tfm_exec_removeImage(bar) end
-		bar = _tfm_exec_addImage(--[["17e1314ec5f.png"]]"17d441f9c0f.png", "~1", 60, 350, nil, 2.0, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
+		bar = _tfm_exec_addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
 		
 		count = count + 1
 	end

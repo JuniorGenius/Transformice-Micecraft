@@ -24,11 +24,16 @@ local room = {
 local modulo = {
 	creator = "Indexinel#5948",
 	name = "Micecraft",
-	loading = nil,
-	sprite = "15150c10e92.png",
+	loading = true,
+  loadImg = {
+    [1] = {"17f94a1608c.png", "17f94a1cb39.png"},
+    [2] = {}
+  },
+	sprite = "17f949fcbb4.png",
 	runtimeLapse = 0,
 	runtimeMax = 0,
-	runtimeLimit = 0
+	runtimeLimit = 0,
+  timeout = false
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -63,8 +68,3 @@ local map = {
 		glow = 1024--2000
 	}]]
 }
-
-do
-	ui.addTextArea(999 , "<font size='64'><p align='center'>Initializing...</p></font>", nil, 100, 150, 600, 200, 0x000000, 0x000000, 1.0, true)
-	modulo.loading = tfm.exec.addImage(modulo.sprite, "~999", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
-end

@@ -1,4 +1,26 @@
 local main = function()	
+  do
+    ui.addTextArea(999,
+      "<font size='16' face='Consolas'><p align='left'>Initializing...</p></font>", nil,
+      55, 320,
+      690, 0,
+      0x000000,
+      0x000000,
+      1.0, true
+    )
+    modulo.loading = true
+  
+    --local scl = 0.8
+    modulo.loadImg[2] = {
+      tfm.exec.addImage(modulo.sprite, "&777", 74, 50, nil, 1.0, 1.0, 0, 1.0, 0, 0),
+      tfm.exec.addImage(modulo.loadImg[1][1], ":42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0),
+      tfm.exec.addImage(modulo.loadImg[1][2], ":69", 55, 348, nil, 1.0, 1.0, 0, 1.0, 0, 0)
+    }
+    
+    tfm.exec.setGameTime(0)
+    ui.setMapName(modulo.name)
+  end
+  
 	for i=1, 512 do
 		if not blockMetadata[i] then
 			blockMetadata[i] = {
@@ -34,7 +56,7 @@ local main = function()
 		end
 	end
 	
-	map.seed = -1881899978--os.time() or 2^31
+	map.seed = os.time() or 2^31
 	math.randomseed(map.seed)
 	local heightMaps = {}
 	

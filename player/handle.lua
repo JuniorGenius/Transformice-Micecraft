@@ -3,7 +3,7 @@ playerStatic = function(self, activate)
 	if activate then
 		tfm.exec.setPlayerGravityScale(playerName, 0)
 		tfm.exec.freezePlayer(playerName, true, false)
-		tfm.exec.movePlayer(playerName, 0, 0, true, 0, 0, true)
+		tfm.exec.movePlayer(playerName, 0, 0, true, -self.vx, -self.vy, false)
 		self.static = os.time() + 4000
 	else
 		tfm.exec.freezePlayer(playerName, false, false)
@@ -84,6 +84,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		self.currentChunk = realCurrentChunk
 		if map.chunk[realCurrentChunk].activated then
 			self.lastActiveChunk = realCurrentChunk
+      if self.static and not modulo.timeout then playerStatic(self, false) end
 		else
 			playerStatic(self)
 		end
