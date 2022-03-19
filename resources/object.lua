@@ -30,7 +30,7 @@ local furnaceData = {
 	{source, {returns, quantity}},
 }
 
-local blockMetadata = {
+local objectMetadata = {
 --[[
 [] = {
 		name = "",
@@ -224,7 +224,10 @@ local blockMetadata = {
 		translucent = false,
 		sprite = "17dd4ae435c.png",
 		interact = true,
-		particles = {1}
+		particles = {1},
+		onInteract = function(self, playerObject)
+			playerDisplayInventory(playerObject, "craft")
+		end
 	},
 	[51] = {
 		name = "Oven",

@@ -1,4 +1,4 @@
-local eventLoadFinished = function()
+onEvent("LoadFinished", function()
   modulo.loading = false
   
 	ui.removeTextArea(999, nil)
@@ -8,106 +8,12 @@ local eventLoadFinished = function()
 
 	tfm.exec.setWorldGravity(0, 10)
 	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
-end
+end)
 
-function eventLoop(elapsed, remaining)
-	local _os_time = os.time
 
-	if modulo.loading then
-    if timer == 0 then
-      tfm.exec.removeImage(modulo.loadImg[2][3])
-      ui.addTextArea(999,
-      "", nil,
-      50, 200,
-      700, 0,
-      0x000000,
-      0x000000,
-      1.0, true
-    )
-		elseif timer <= awaitTime then
-			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
-		else
-			eventLoadFinished()
-		end
-	end
-	
-	do
-		if timer > 10000 and modulo.loading then
-			error("Script loading failed.", 2)
-		else
-			for _, player in next, room.player do
-				if player.isAlive then
-					playerActualizeInfo(player)
-					
-					playerReachNearChunks(player)
-					
-					if modulo.loading then
-						if map.chunk[player.currentChunk].activated then
-							awaitTime = -1000
-						else
-							if timer >= awaitTime - 1000 then
-								awaitTime = awaitTime + 500
-							end
-						end
-					end
-					
-					if player.static and _os_time() > player.static then
-						playerStatic(player, false)
-					end
-				end
-				
-				playerCleanAlert(player)
-			end
-		
-			if _os_time() > map.timestamp + 4000 then
-				if modulo.runtimeLapse > 1 then
-					print("<R><b>Runtime reset:</b> <D>" .. modulo.runtimeLapse)
-          modulo.timeout = false
-				end
-				modulo.runtimeLapse = 0
-        
-			end
-			
-			do
-				if modulo.runtimeLapse < modulo.runtimeLimit then
-					handleChunksRefreshing()
-				end
-				
-				if modulo.runtimeLapse >= modulo.runtimeLimit then
-					for _, player in next, room.player do
-						if not player.static then
-							playerStatic(player, true)
-							playerAlert(player, "<b>Module Timeout", nil, "CEP", 48, 3900)
-						end
-					end
-          modulo.timeout = true
-				end
+require("Loop")
 
-			end
-			--[[if tt >= 3 then
-				map.loadingTotalTime = map.loadingTotalTime + tt
-				map.totalLoads = map.totalLoads + 1
-				map.loadingAverageTime = _math_round(map.loadingTotalTime / map.totalLoads, 2)
-				if room.isTribe then
-					local color
-					if tt < 10 then color = "VP" elseif tt >= 10 and tt < 20 then color = "CEP" else color = "R" end
-					print(string.format("<V>[Event Loop]</V> Chunks updated in <%s>%d ms</%s> (avg. %f ms)", color, tt, color, map.loadingAverageTime))
-				end
-			end]]
-		end
-	end
-	
-	if globalGrounds > 512 then
-		--print("<CEP> Warning! <R>" .. globalGrounds .. "</R> is above the safe physic objects count!")--worldRefreshChunks()
-		if globalGrounds >= 712 then -- 512
-			error(string.format("Physic system destroyed: <CEP>Limit of physic objects reached:</CEP> <R>%d/512", globalGrounds), 2)
-		end
-	end
-	
-	timer = timer + 500
-end
-
-function eventKeyboard(playerName, key, down, x, y)
+onEvent("Keyboard", function(playerName, key, down, x, y)
 	if timer > awaitTime and room.player[playerName] then
 		if down then
 			room.player[playerName].keys[key+1] = true
@@ -142,15 +48,15 @@ function eventKeyboard(playerName, key, down, x, y)
 			if room.player[playerName].isAlive then playerActualizeInfo(room.player[playerName], x, y, _, _, key < 4 and (key%2==0 and key==2 or nil) or nil) end
 		end
 	end
-end
+end)
 
-function eventMouse(playerName, x, y)
+onEvent("Mouse", function(playerName, x, y)
 	if timer > awaitTime and room.player[playerName] then
 		if room.player[playerName].isAlive then
 			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
+				local block = getPosBlock(x, y-200)
 				local isKeyActive = room.player[playerName].keys
 				if isKeyActive[19] then -- debug
-					local block = getPosBlock(x, y-200)
 					if isKeyActive[18] then
 						printt(map.chunk[block.chunk].grounds[1][block.act])
 					else
@@ -159,40 +65,48 @@ function eventMouse(playerName, x, y)
 				elseif isKeyActive[18] then
 					playerBlockInteract(room.player[playerName], getPosBlock(x, y-200))
 				elseif isKeyActive[17] then
-					playerPlaceBlock(room.player[playerName], x, y)
+					playerPlaceObject(room.player[playerName], x, y, isKeyActive[33])
 				else
-					playerDestroyBlock(room.player[playerName], x, y)
+					if block.id ~= 0 then
+						playerDestroyBlock(room.player[playerName], x, y)
+					else
+						room.player[playerName].inventory.slot[room.player[playerName].inventory.selectedSlot]:onHit(x, y)
+					end
 				end
 			end
 		end
 	end
-end
+end)
 
-function eventPlayerDied(playerName)
+onEvent("PlayerDied", function(playerName, override)
 	if room.player[playerName] then
 		room.player[playerName].isAlive = false
-		tfm.exec.respawnPlayer(playerName)
+		if override then
+			tfm.exec.respawnPlayer(playerName)
+		else
+			ui.addTextArea(42069, "\n\n\n\n\n\n\n\n<p align='center'><font face='Soopafresh' size='42'><R>You've died.</R></font>\n\n\n<font size='28' face='Consolas' color='#ffffff'><a href='event:respawn'>Respawn</a></font></p>", playerName, 0, 0, 800, 400, 0x010101, 0x010101, 0.4, true)
+		end
 	end
-end
+end)
 
-function eventPlayerRespawn(playerName)
+onEvent("PlayerRespawn", function(playerName)
 	if room.player[playerName] then
 		tfm.exec.movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
 		playerActualizeInfo(room.player[playerName], map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
 	end
-end
+end)
 
-function eventNewPlayer(playerName)
+onEvent("NewPlayer", function(playerName)
 	startPlayer(playerName, map.spawnPoint)
 	tfm.exec.addImage("17e464d1bd5.png", "?512", 0, 8, playerName, 32, 32, 0, 1.0, 0, 0)
 	ui.addTextArea(0, "<p align='right'><font size='18' face='Consolas'> <a href='event:help'>Help</a> ", playerName, 600, 375, 200, 25, 0x000000, 0x000000, 1.0, true)
-end
+end)
 
-function eventPlayerLeft(playerName)
+onEvent("PlayerLeft", function(playerName)
 	room.player[playerName] = nil
-end
+end)
 
-function eventChatCommand(playerName, command)
+onEvent("ChatCommand", function(playerName, command)
 	local args = {}
 	
 	for arg in command:gmatch("%S+") do
@@ -205,7 +119,7 @@ function eventChatCommand(playerName, command)
 	elseif args[1] == "seed" then
 		ui.addPopup(169, 0, string.format("<p align='center'>World's seed:\n%d", map.seed), playerName, 300, 180, 200, true)
 	elseif args[1] == "tp" then
-		if room.isTribe then
+		if room.isTribe or playerName == modulo.creator then
 			local pa = tonumber(args[2])
 			local pb = tonumber(args[3])
 			
@@ -227,148 +141,28 @@ function eventChatCommand(playerName, command)
 	elseif args[1] == "debug" then
 		local player = room.player[args[2]]
 		
-		if player then printt(player) end
+		if player then printt(player, {"keys", "slot", "interaction"}) end
+  elseif args[1] == "announce" or "chatannounce" then
+    if playerName == modulo.creator then
+      local _output = "<CEP><b>[Room Announcement]</b></CEP> <D>"
+      for i=2, #args do
+        _output = _output .. args[i] .. " "
+      end
+      _output = _output .. "</D>"
+      
+      if args[1] == "chatannounce" then
+        tfm.exec.chatMessage(_output, nil)
+      else
+        ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
+      end
+    end
 	end
-end
+end)
 
-local eventPlayerHudInteraction = function(self)
-	if self.inventory.interaction.crafting then
-		
-		local lookup = nil
-		local k = 1
-		local m = i
-		local itemsList = {}
-		local _table_insert = table.insert
-		
-		for i=1, self.inventory.interaction.crafting do
-			m = i
-			if self.inventory.interaction.crafting == 4 and i == 3 then
-				k = k + 1
-			end
-			
-			if lookup then
-				k = k + 1
-				if self.inventory.interaction[m].itemId == craftsData[lookup][1][k] then
-					_table_insert(itemsList, self.inventory.interaction[m])
-					if k == #craftsData[lookup][1] then
-						return itemCreate(self.inventory.interaction[10], craftsData[lookup][2][1], craftsData[lookup][2][2], true), itemsList
-					end
-				else
-					if k <= #craftsData[lookup][1] then
-						lookup = nil
-						k = 0
-						break
-					else
-						return itemCreate(self.inventory.interaction[10], craftsData[lookup][2][1], craftsData[lookup][2][2], true), itemsList
-					end
-				end
-			else
-				for j, craft in next, craftsData do
-					if self.inventory.interaction[m].itemId == craft[1][1] then
-						lookup = j
-						k = 1
-						_table_insert(itemsList, self.inventory.interaction[m])
-						if #craftsData[lookup][1] == 1 and i == 9 then
-							return itemCreate(self.inventory.interaction[10], craftsData[lookup][2][1], craftsData[lookup][2][2], true), itemsList
-						else
-							break
-						end
-					end
-				end
-				
 
-			end
-		end
-	elseif self.inventory.interaction.furnacing then
-		return nil
-	end
-end
+require("TextAreaCallback")
 
-function eventTextAreaCallback(textAreaId, playerName, eventName)
-	if timer > awaitTime then
-		if (textAreaId > 110 and textAreaId <= 146) or (textAreaId > 210 and textAreaId <= 220) then
-			local newSlot = textAreaId - 110
-			local select = playerGetInventorySlot(room.player[playerName], textAreaId - 110)
-			
-			if room.player[playerName].keys[18] or room.player[playerName].keys[17] and textAreaId ~= 220 and select then
-				local origin = playerGetInventorySlot(room.player[playerName], room.player[playerName].inventory.selectedSlot)
-				if origin then
-					local source, destinatary, pass
-					
-					if room.player[playerName].trade.isActive then
-						source, destinatary = playerName, room.player[playerName].trade.whom
-						pass = {source, destinatary}
-						select = playerGetInventorySlot(room.player[destinatary], 1)
-					else
-						source, destinatary = playerName, playerName
-						pass = playerName
-					end
-					
-					if room.player[playerName].keys[18] then
-						origin, select, newSlot = itemMove(origin, select, 0, pass)
-					elseif room.player[playerName].keys[17] then
-						local quantity = 1
-						if origin.id == 110 then quantity = origin.amount end
-						origin, select, newSlot = itemMove(origin, select, quantity, pass)
-					end
-
-					-- Display both items interacted with
-					if (room.player[destinatary].inventory.barActive and (select.id > 27 and select.id <= 36)) or not room.player[destinatary].inventory.barActive then
-						itemDisplay(select, destinatary, room.player[destinatary].inventory.barActive)
-					end
-					if (room.player[source].inventory.barActive and (origin.id > 27 and origin.id <= 36)) or not room.player[source].inventory.barActive  then
-						itemDisplay(origin, source, room.player[source].inventory.barActive)
-					end
-					
-					--[[if eventName == "inventory"	then
-						return true
-					else]]
-
-					
-					if eventName == "interaction" or origin.id > 100 or select.id > 100 then -- == 110	
-						local display, remove = eventPlayerHudInteraction(room.player[source])
-						if display and remove then
-							if origin.id == 110 and select.id ~= origin.id then
-							
-								for _, element in next, remove do
-									inventoryExtractItem(
-										room.player[source].inventory, 
-										element.itemId, 1, element
-									)
-									itemRemove(origin, source)
-								end
-							else
-								itemDisplay(display, destinatary, room.player[source].inventory.barActive)
-							end
-						else
-							itemRemove(room.player[source].inventory.interaction[10], source)
-						end
-					end
-				end
-			end
-			playerChangeSlot(room.player[playerName], newSlot)
-		end
-	end
-	
-	if textAreaId == 0 then
-		if eventName == "help" then
-			local helpText = "<p align='center'><font size='48' face='Consolas'><D>Help</D></font></p>\n\n<font face='Consolas'>Welcome to <J><b>"..(modulo.name).."</b></J>, script created by <V>"..(modulo.creator).."</V>.\n\n<b>CONTROLS:</b>\n- <u>CLICK:</u> Damage blocks.\n- <u><V>SHIFT</V> + CLICK:</u> Places a block, from selected slot.\n- <u>[1- 9]:</u> Select a slot from inventory. You can also click on them to select.\n- [E]: Opens the main inventory.\n- <u><V>CTRL</V> + CLICK</u>:  Interacts with a block, when in inventory it exchanges the position of an item from a previous slot to the new clicked one.\n\n\nIf you find any bugs, please report to my Direct Messages in the Forum or through my Discord: <CH>Cap#1753</CH>.\n\nHope you enjoy!"
-			ui.addTextArea(200, helpText, playerName, 150, 50, 500, 300, 0x010101, 0x010101, 0.67, true)
-			ui.addTextArea(201, "<font size='16'><a href='event:clear'><R><b>X</b></R></a>", playerName, 630, 55, 0, 0, 0x000000, 0x000000, 1.0, true)
-		end
-	end
-	
-	if eventName == "clear" or eventName == "alert" then
-		ui.removeTextArea(textAreaId, playerName)
-		if textAreaId == 201 then
-			ui.removeTextArea(200, playerName)
-		elseif textAreaId == 1001 then
-			ui.removeTextArea(1000, playerName)
-		end
-	end
-end
-
-function eventPopupAnswer(popupId, playerName, answer)
+onEvent("PopupAnswer", function(popupId, playerName, answer)
 	return nil
 	--[[
 	if room.player[playerName] then
@@ -418,9 +212,10 @@ function eventPopupAnswer(popupId, playerName, answer)
 			end
 		end
 	end]]
-end
+end)
 
-function eventNewGame()
+
+onEvent("NewGame", function()
 	generateBoundGrounds()
 	tfm.exec.setGameTime(0)
 	ui.setMapName(modulo.name)
@@ -430,4 +225,4 @@ function eventNewGame()
 		eventNewPlayer(name)
 		eventPlayerRespawn(name)
 	end
-end
+end)

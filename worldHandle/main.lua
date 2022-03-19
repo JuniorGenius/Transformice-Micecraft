@@ -18,7 +18,7 @@ handleChunksRefreshing = function()
 	local lapse = 0
 	local dif = _os_time()
 	
-	local lcalls = 16
+	local lcalls = room.isTribe and 16 or 24
 	
 	local handle = map.handle
 	local chunkList = map.chunk
@@ -166,7 +166,7 @@ createNewWorld = function(heightMaps)
 	
 	local updatePercentage = function()
 		local percentage = _math_round(count/13.60, 2)
-		_ui_updateTextArea(999, _string_format("<p align='left'><font size='16' face='Consolas'>Loading...\t<D>%f%%</D></font></p>", percentage), nil)
+		_ui_updateTextArea(999, _string_format("<p align='left'><font size='16' face='Consolas' color='#ffffff'>Loading...\t<D>%f%%</D></font></p>", percentage), nil)
 		if bar then _tfm_exec_removeImage(bar) end
 		bar = _tfm_exec_addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
 		
@@ -210,7 +210,7 @@ startPlayer = function(playerName, spawnPoint)
 		system.bindMouse(playerName, true)
 		
 		tfm.exec.setAieMode(true, 5.0, playerName)
-		eventPlayerDied(playerName)
+		eventPlayerDied(playerName, true)
 		
 		ui.addTextArea(777, "", playerName, 5, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
 	

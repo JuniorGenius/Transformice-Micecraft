@@ -1,7 +1,7 @@
 local main = function()	
   do
     ui.addTextArea(999,
-      "<font size='16' face='Consolas'><p align='left'>Initializing...</p></font>", nil,
+      "<font size='16' face='Consolas' color='#ffffff'><p align='left'>Initializing...</p></font>", nil,
       55, 320,
       690, 0,
       0x000000,
@@ -12,30 +12,37 @@ local main = function()
   
     --local scl = 0.8
     modulo.loadImg[2] = {
-      tfm.exec.addImage(modulo.sprite, "&777", 74, 50, nil, 1.0, 1.0, 0, 1.0, 0, 0),
+      tfm.exec.addImage(modulo.sprite, "~777", 70, 50, nil, 1.0, 1.0, 0, 1.0, 0, 0),
       tfm.exec.addImage(modulo.loadImg[1][1], ":42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0),
       tfm.exec.addImage(modulo.loadImg[1][2], ":69", 55, 348, nil, 1.0, 1.0, 0, 1.0, 0, 0)
     }
     
     tfm.exec.setGameTime(0)
-    ui.setMapName(modulo.name)
+    ui.setMapName(modulo.name) 
   end
   
-	for i=1, 512 do
-		if not blockMetadata[i] then
-			blockMetadata[i] = {
-				name = "Null",
-				drop = 0,
-				durability = 18,
-				glow = 0,
-				translucent = false,
-				sprite = "17e1315385d.png",
-				particles = {}
-			}
-		else
-			if not blockMetadata[i].sprite then blockMetadata[i].sprite = "17e1315385d.png" end
-			if blockMetadata[i].drop == 0 then blockMetadata[i].drop = i end
-		end
+	for i=0, 512 do
+		if not objectMetadata[i] then objectMetadata[i] = {} end
+		local _ref = objectMetadata[i] 
+		objectMetadata[i] = {
+			name = _ref.name or "Null",
+			drop = _ref.drop or 0,
+			durability = _ref.durability or 18,
+			glow = _ref.glow or 0,
+			translucent = _ref.translucent or false,
+			sprite = _ref.sprite or "17e1315385d.png",
+			particles = _ref.particles or {},
+			interact = _ref.interact or false,
+			
+			onCreate = _ref.onCreate or dummyFunc,
+			onPlacement = _ref.onPlacement or dummyFunc,
+			onDestroy = _ref.onDestroy or dummyFunc,
+			onInteract = _ref.onInteract or dummyFunc,
+			onHit = _ref.onHit or dummyFunc,
+			onDamage = _ref.onDamage or dummyFunc,
+			onContact = _ref.onContact or dummyFunc,
+			onUpdate = _ref.onUpdate or dummyFunc
+		}
 	end
 	
 	do
@@ -50,7 +57,7 @@ local main = function()
 		
 		
 		if not room.isTribe then
-			tfm.exec.setRoomMaxPlayers(8)
+			tfm.exec.setRoomMaxPlayers(5)
 			tfm.exec.setPlayerSync(nil) 
 			tfm.exec.disableDebugCommand(true)
 		end
@@ -80,23 +87,4 @@ main()
 
 end
 
-xpcall(game, function(err)
-	ui.addTextArea(0,
-		string.format(
-			"<p align='center'><font size='18'><R><B><font face='Wingdings'>M</font> Fatal Error</B></R></font>\n\n<CEP>%s</CEP>\n\n<CS>%s</CS>\n\n\nSend this to Indexinel#5948",
-			err, debug.traceback()
-		),
-		nil,
-		200, 100,
-		400, 200,
-		0x010101, 0x010101,
-		0.8, true
-	)
-	for n in next, _G do
-		if string.find(tostring(n), "event") then
-			_G[n] = function()
-				return
-			end
-		end
-	end
-end)
+xpcall(game, errorHandler)

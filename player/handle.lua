@@ -84,9 +84,9 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		self.currentChunk = realCurrentChunk
 		if map.chunk[realCurrentChunk].activated then
 			self.lastActiveChunk = realCurrentChunk
-      if self.static and not modulo.timeout then playerStatic(self, false) end
+			if self.static and not modulo.timeout then playerStatic(self, false) end
 		else
-			playerStatic(self)
+			if not self.static then playerStatic(self, true) end
 		end
 		
 		if timer >= awaitTime then
@@ -138,7 +138,7 @@ playerReachNearChunks = function(self, range, forced)
 			end
 		end
 		
-		self.timestamp = os.time()
+		self.timestamp = os.time() + 3000
 	end
 end
 
@@ -157,12 +157,12 @@ playerLoopUpdate = function(self)
 				end
 			end
 		else
-			if os.time > self.timestamp + 2000 then
+			if os.time() > self.timestamp then
 				playerReachNearChunks(self)
 			end
 		end
 	
-		if self.static and _os_time() > self.static then
+		if self.static and os.time() > self.static then
 			playerStatic(self, false)
 		end
 	end

@@ -13,19 +13,19 @@ local depth = 0
 local wrap
 wrap = function(root, filename)
 	local __file = io.open("./" .. root .. "/" .. filename .. ".lua", 'r')
-  local filestr
-  if __file then
-    depth = 0
-    filestr = __file:read("*all")
-    __file:close()
-  else
-    if depth < 5 then
-      depth = depth + 1
-      return wrap(root .. "/" .. filename, "main")
-    else
-      return "-- Error on loading of " .. root .. "/" .. filename .. ".lua"
-    end
-  end
+	local filestr
+	if __file then
+		depth = 0
+		filestr = __file:read("*all")
+		__file:close()
+	else
+		if depth < 5 then
+			depth = depth + 1
+			return wrap(root .. "/" .. filename, "main")
+		else
+			return "-- Error on loading of " .. root .. "/" .. filename .. ".lua", "failure"
+		end
+	end
 
 	local req = function(file)
     if file:sub(1, 7) == "require" then
@@ -34,27 +34,29 @@ wrap = function(root, filename)
     return wrap(root, file)
   end
 	
-	return filestr:gsub('require%(".-"%)', req)
+	return filestr:gsub('require%(".-"%)', req), "success"
 end
 
 do
 	local __builder, success = io.open("./builder.lua", 'r')
-  local builder
-  if __builder then
-    builder = __builder:read("*all")
-    __builder:close()
-  else
-    error(success)
-  end
+	local builder
+	if __builder then
+		builder = __builder:read("*all")
+		__builder:close()
+	else
+		error(success)
+	end
 
-	local build = ""
+	local build = "-- Micecraft --\n-- Script created by Indexinel#5948"
+	local _fwrap, status
 	for dir in builder:gmatch('require%("(%w+)"%)') do
-    print(dir)
-		build = build .. (string.rep('\n', 3) .. "-- " .. string.rep("=", 10) .. '\t' .. string.upper(dir) .. '\t' .. string.rep("=", 10)) .. " --\n\n" .. wrap(dir, "main")
+		_fwrap, status = wrap(dir, "main")
+		print(string.format(" [%s] %s", status, dir))
+		build = build .. ("\n\n" .. "-- " .. string.rep("=", 10) .. '\t' .. string.upper(dir) .. '\t' .. string.rep("=", 10)) .. " --\n\n" .. _fwrap
 	end
 	
 	local newBuild = io.open("./micecraft.lua", 'w')
-	newBuild:write(build .. ("\n\n--" .. os.date("%d/%m/%Y %H:%M:%S")))
+	newBuild:write(build .. ("\n\n-- " .. os.date("%d/%m/%Y %H:%M:%S") .. " --"))
 	newBuild:close()
 	
 	print("Success.")

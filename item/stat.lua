@@ -33,7 +33,7 @@ itemCreate = function(self, itemId, amount, stackable)
 	self.itemId = itemId
 	self.amount = amount or 1
 	self.stackable = stackable or true
-	self.sprite[1] = itemId ~= 0 and blockMetadata[itemId].sprite or nil
+	self.sprite[1] = itemId ~= 0 and objectMetadata[itemId].sprite or nil
 	
 	return self
 end

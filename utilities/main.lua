@@ -81,15 +81,24 @@ generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceStart, wi
 	return heightMap
 end
 
-dump = function(var, nest)
+dump = function(var, nest, except)
+  local avoid = {}
+  
+  if except then
+    for _, key in next, except do
+      avoid[key] = true
+    end
+  end
+  
 	nest = nest or 1
 	if type(var) == "table" then
 		local str = (nest == 1 and tostring(var):gsub("table: ", "") .. " =" or "") .. " {\n"
 		for k, v in pairs(var) do
+      local retVal = avoid[k] and "exceptionValue" or dump(v, nest+1, except)
 			local isNumber = type(k) == "number"
 			k = "<CEP>" .. k .. "</CEP>"
 			if isNumber then k = "["..k.."]" end
-			str = str .. string.rep("\t", nest) .. k .. " = " .. dump(v, nest+1) .. ",\n"--( and ",\n" or "\n")
+			str = str .. string.rep("\t", nest) .. k .. " = " .. retVal .. ",\n"--( and ",\n" or "\n")
 		end
 		
 		return (str .. string.rep("\t", nest-1) .. '}'):gsub(",\n\t*}", "\n"..string.rep('\t', nest-1).."}")
@@ -112,8 +121,8 @@ dump = function(var, nest)
 	end
 end
 
-printt = function(var)
-	local _, val = pcall(dump, var)
+printt = function(var, except)
+	local _, val = pcall(dump, var, 1, except)
 	print("<N2>" .. val .. "</N2>")
 end
 

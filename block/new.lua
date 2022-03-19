@@ -2,27 +2,29 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 	local xp, yp = getTruePosMatrix(chunk, x, y)
 	yp = 256-yp
 	
-	local meta = blockMetadata[type]
+	local meta = objectMetadata[type]
 	
+	local id = ((x-1)*32) + y
 	local block = {
 		x = xp,
 		y = yp,
 		rx = x,
 		ry = y,
 		
-		id = ((x-1)*32) + y,
-		gid = (((chunk-1)*384)+((x-1)*32)+y),
+		id = id,
+		gid = ((chunk-1)*384) + id,
 		act = (type == 0 or ghost) and 0 or -1,
 		chunk = chunk,
 
 		type = type,
-		ghost = ghost or false,
-		glow = glow or false,
-		translucent = translucent or false,
-		mossy = mossy or false,
+		ghost = ghost,
+		glow = glow,
+		translucent = translucent,
+		mossy = mossye,
 		
 		damage = damage or 0,
 		damagePhase = 0,
+		durability = meta.durability,
 		
 		shadowness = (ghost and not translucent) and 0.33 or 0,
 		sprite = {},
@@ -30,11 +32,16 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		dx = xp*32,
 		dy = ((256-yp)*32)+200,
 		
-		interact = type ~= 0 and meta.interact or false,
+		interact = meta.interact,
 		
-		onInteract = nil,--meta.onInteract or defaultOnInteract,
-		onDestroy = nil,--meta.onDestroy or defualtOnDestroy,
-		onCreate = nil--meta.onCreate or defaultOnCreate
+		onInteract = meta.onInteract,
+		onDestroy = meta.onDestroy,
+		onCreate = meta.onCreate,
+		onPlacement = meta.onPlacement,
+		onHit = meta.onHit,
+		onUpdate = meta.onUpdate,
+		onDamage = meta.onDamage,
+		onContact = meta.onContact
 	}
 	
 	--[[if type ~= 0 then
@@ -44,7 +51,7 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 	end]]
 	block.sprite = {
 		[1] = {
-			block.type >= 1 and meta.sprite or nil,
+			block.type ~= 0 and meta.sprite or nil,
 			nil, --block.type >= 1 and mossSprites[--[[map.chunk[chunk].biome]]1] or nil,
 			shadowSprite,
 			nil,

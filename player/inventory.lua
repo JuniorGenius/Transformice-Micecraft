@@ -45,7 +45,7 @@ playerChangeSlot = function(self, slot)
 	end
 	
 	if select.itemId ~= 0 then	
-		playerAlert(self, blockMetadata[select.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
+		playerAlert(self, objectMetadata[select.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
 	else
 		eventTextAreaCallback(1001, self.name, "clear")
 	end

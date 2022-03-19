@@ -1,8 +1,8 @@
-playerPlaceBlock = function(self, x, y)
+playerPlaceObject = function(self, x, y, ghost)
 	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 		local item = self.inventory.slot[self.inventory.selectedSlot]
 		
-		if item.stackable and item.amount >= 1 then
+		if item.itemId <= 256 and item.amount >= 1 then
 			local _getPosBlock = getPosBlock
 			local block = _getPosBlock(x, y-200)
 			
@@ -24,7 +24,7 @@ playerPlaceBlock = function(self, x, y)
 					end
 					
 					if around then
-						blockCreate(block, item.itemId, false, true)
+						blockCreate(block, item.itemId, ghost, true)
 						if inventoryExtractItem(self.inventory, item.itemId, 1, true) then tfm.exec.setPlayerScore(self.name, -1, true) end
 						playerUpdateInventoryBar(self)
 						--recalculateShadows(block, 9*(areAround/4))
@@ -57,7 +57,7 @@ playerDestroyBlock = function(self, x, y)
 				end
 				
 				if not around then
-					local drop = blockMetadata[block.type].drop
+					local drop = objectMetadata[block.type].drop
 					local destroyed = blockDamage(block, 10)
 					if destroyed then
 						if drop ~= 0 and block.type == 0 then
@@ -69,6 +69,59 @@ playerDestroyBlock = function(self, x, y)
 				end
 			end
 		end
+	end
+end
+
+playerHudInteraction = function(self)
+	if self.inventory.interaction.crafting then
+		
+		local lookup = nil
+		local k = 1
+		local m = i
+		local itemsList = {}
+		local _table_insert = table.insert
+		
+		for i=1, self.inventory.interaction.crafting do
+			m = i
+			if self.inventory.interaction.crafting == 4 and i == 3 then
+				k = k + 1
+			end
+			
+			if lookup then
+				k = k + 1
+				if self.inventory.interaction[m].itemId == craftsData[lookup][1][k] then
+					_table_insert(itemsList, self.inventory.interaction[m])
+					if k == #craftsData[lookup][1] then
+						return itemCreate(self.inventory.interaction[10], craftsData[lookup][2][1], craftsData[lookup][2][2], true), itemsList
+					end
+				else
+					if k <= #craftsData[lookup][1] then
+						lookup = nil
+						k = 0
+						break
+					else
+						return itemCreate(self.inventory.interaction[10], craftsData[lookup][2][1], craftsData[lookup][2][2], true), itemsList
+					end
+				end
+			else
+				for j, craft in next, craftsData do
+					if self.inventory.interaction[m].itemId == craft[1][1] then
+						lookup = j
+						k = 1
+						_table_insert(itemsList, self.inventory.interaction[m])
+						if #craftsData[lookup][1] == 1 and i == 9 then
+							return itemCreate(self.inventory.interaction[10], craftsData[lookup][2][1], craftsData[lookup][2][2], true), itemsList
+						else
+							break
+						end
+					end
+				end
+				
+
+			end
+		end
+	elseif self.inventory.interaction.furnacing then
+		return nil
 	end
 end
 
@@ -91,7 +144,7 @@ playerBlockInteract = function(self, block)
 		if block.interact then
 			blockInteract(block, self)
 		else
-			playerAlert(self, blockMetadata[block.type].name, 328, "D", 14)
+			playerAlert(self, objectMetadata[block.type].name, 328, "D", 14)
 		end
 	end
 end

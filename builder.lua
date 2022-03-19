@@ -13,8 +13,6 @@
 
 require("resources")
 
-require("prototypes")
-
 require("utilities")
 
 require("block")
