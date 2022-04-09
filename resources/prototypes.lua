@@ -40,11 +40,11 @@ local	itemNew,
 		itemMove
 		
 local	stackFindItem,
-		inventoryFindItem,
-		inventoryCreateItem,
-		inventoryInsertItem,
-		inventoryExtractItem,
-		inventoryExchangeItemsPosition
+		stackFindItem,
+		stackCreateItem,
+		stackInsertItem,
+		stackExtractItem,
+		stackExchangeItemsPosition
 
 local	playerNew,
 		playerAlert,

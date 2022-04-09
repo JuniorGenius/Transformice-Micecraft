@@ -3,7 +3,7 @@ playerStatic = function(self, activate)
 	if activate then
 		tfm.exec.setPlayerGravityScale(playerName, 0)
 		tfm.exec.freezePlayer(playerName, true, false)
-		tfm.exec.movePlayer(playerName, 0, 0, true, -self.vx, -self.vy, false)
+		_movePlayer(playerName, 0, 0, true, -self.vx, -self.vy, false)
 		self.static = os.time() + 4000
 	else
 		tfm.exec.freezePlayer(playerName, false, false)
@@ -23,15 +23,18 @@ playerCorrectPosition = function(self)
 				local ypos = 256 - map.heightMaps[1][xpos]
 				self.x = xpos * 32
 				self.y = (ypos * 32) + 200
-				tfm.exec.movePlayer(self.name, self.x, self.y, false, 0, -8)
+				_movePlayer(self.name, self.x, self.y, false, 0, -8)
 			end]]
 		else
 			local isTangible = function(block) return (block.type ~= 0 and not block.ghost) end
 			local _getPosBlock = getPosBlock
 			if isTangible(_getPosBlock(self.x, self.y-200)) then
-				local xpos, ypos, nxj, nyj, pxj, offset
+				local nxj, nyj, pxj, offset
+				local xpos, ypos = self.x+0, self.y-200
 
-				for i=1, 256 do
+				local i = 1
+				
+				while i < 256 do
 					offset = i*32
 					nxj = _getPosBlock(self.x-offset, self.y-200)
 					nyj = _getPosBlock(self.x, self.y-offset-200)
@@ -46,12 +49,38 @@ playerCorrectPosition = function(self)
 						self.x = self.x+offset
 						break
 					end
+					i = i + 1
 				end
-				tfm.exec.movePlayer(self.name, self.x, self.y, false, 0, -8)
+				
+				if i >= 256 then
+					blockDestroy(_getPosBlock(xpos, ypos), self.name)
+					self.x = xpos
+					self.y = ypos + 200
+					i = 0
+				end
+				
+				if i < 256 then
+					_movePlayer(self.name, self.x, self.y, false, 0, -8)
+				end
 			end
 		end
 	end
 end 
+
+playerActualizeHoldingItem = function(self)
+	if self.inventory.barActive then
+		local select = self.inventory.selectedSlot
+		if select.itemId ~= 0 then
+			if self.inventory.holdingSprite then tfm.exec.removeImage(self.inventory.holdingSprite) end
+			self.inventory.holdingSprite = tfm.exec.addImage(objectMetadata[select.itemId].sprite, "$"..self.name, self.facingRight and 10 or -10, -4, nil, self.facingRight and 0.5 or -0.5, 0.5, 0, 1.0, 0, 0)
+		else
+			if self.inventory.holdingSprite then
+				tfm.exec.removeImage(self.inventory.holdingSprite)
+				self.inventory.holdingSprite = nil
+			end
+		end
+	end
+end
 
 playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 	local tfmp = tfm.get.room.playerList[self.name]
@@ -62,7 +91,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 	if timer < awaitTime or tfmp.y < 0 then
 		self.x = map.spawnPoint.x
 		self.y = map.spawnPoint.y
-		tfm.exec.movePlayer(self.name, self.x, self.y)
+		_movePlayer(self.name, self.x, self.y)
 	end
 	
 	self.tx = (self.x/32) - 510
@@ -70,7 +99,12 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 	
 	self.vx = vx or tfmp.vx
 	self.vy = vy or tfmp.vy
-	self.facingRight = facingRight or tfmp.facingRight
+	
+	if facingRight ~= nil then
+		self.facingRight = facingRight
+		playerActualizeHoldingItem(self)
+	end
+	
 	self.isAlive = isAlive or (tfmp.isDead and false or true)
 	
 	if self.isAlive then
@@ -91,54 +125,56 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		
 		if timer >= awaitTime then
 		
-		ui.updateTextArea(777,
-			string.format(
-				"<font size='18' face='Consolas'><CH2>%s</CH2></font>\n<D><font size='13' face='Consolas'><b>Pos:</b> x %d, y %d\n<b>Last Chunk:</b> %d\n<b>Current Chunk:</b> %d (%s)\n<b>Global Grounds:</b> %d",
-				self.name,
-				self.tx, self.ty,
-				self.lastChunk,
-				self.currentChunk,
-				(self.currentChunk >= 1 and self.currentChunk <= 680) and (map.chunk[self.currentChunk].activated and "+" or "-") or "NaN",
-				globalGrounds
-			), 
-			self.name
+		local updtstr = string.format(
+			"<font size='18' face='Consolas'><CH2>%s</CH2></font>\n<D><font size='13' face='Consolas'><b>Pos:</b> x %d, y %d\n<b>Last Chunk:</b> %d\n<b>Current Chunk:</b> %d (%s)\n<b>Global Grounds:</b> %d",
+			self.name,
+			self.tx, self.ty,
+			self.lastChunk,
+			self.currentChunk,
+			(self.currentChunk >= 1 and self.currentChunk <= 680) and (map.chunk[self.currentChunk].activated and "+" or "-") or "NaN",
+			globalGrounds
 		)
+		
+		ui.updateTextArea(778, "<font color='#000000'><b>" .. updtstr:gsub("</?CH2>", ""):gsub("<D>", ""), self.name)
+		ui.updateTextArea(777, updtstr, self.name)
 		
 		end
 	end
 end
 
 playerReachNearChunks = function(self, range, forced)
-	local cl, dcl, clj, dclj
-	if self.currentChunk and self.lastChunk then
-		for i=-1, 1 do
-			cl = self.lastChunk+(85*i)
-			dcl = self.currentChunk+(85*i)
-			for j=-2, 2 do
-				clj = cl+j
-				dclj = dcl+j
-				
-				local crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
-				
-				if forced then
-					if dclj >= 1 and dclj <= 680 then
-						map.handle[dclj] = {dclj, crossCondition and chunkFlush or chunkReload}
-					end
-				else
-					if clj >= 1 and clj <= 680 then
-						if not map.handle[clj] then map.handle[clj] = {clj, chunkUnload} end
-					end
+	if timer%2000 == 0 or forced then
+		local cl, dcl, clj, dclj
+		if self.currentChunk and self.lastChunk then
+			for i=-1, 1 do
+				cl = self.lastChunk+(85*i)
+				dcl = self.currentChunk+(85*i)
+				for j=-2, 2 do
+					clj = cl+j
+					dclj = dcl+j
 					
-					if dclj >= 1 and dclj <= 680 then
-						if (map.handle[dclj] and (map.handle[dclj][2] == chunkLoad or map.handle[dclj][2] == chunkUnload)) or not map.handle[dclj] then
-							map.handle[dclj] = {dclj, crossCondition and chunkUpdate or chunkLoad}
+					local crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+					
+					if forced then
+						if dclj >= 1 and dclj <= 680 then
+							map.handle[dclj] = {dclj, crossCondition and chunkFlush or chunkReload}
+						end
+					else
+						if clj >= 1 and clj <= 680 then
+							if not map.handle[clj] then map.handle[clj] = {clj, chunkUnload} end
+						end
+						
+						if dclj >= 1 and dclj <= 680 then
+							if (map.handle[dclj] and (map.handle[dclj][2] == chunkLoad or map.handle[dclj][2] == chunkUnload)) or not map.handle[dclj] then
+								map.handle[dclj] = {dclj, crossCondition and chunkUpdate or chunkLoad}
+							end
 						end
 					end
 				end
 			end
+			
+			self.timestamp = os.time() + 2000
 		end
-		
-		self.timestamp = os.time() + 3000
 	end
 end
 

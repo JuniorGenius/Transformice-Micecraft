@@ -180,7 +180,7 @@ chunkCalculateCollisions = function(self)
 				endPoint = {xend, yend}
 			}
 		end
-    until matches <= 0
+    until (matches <= 0)
 	
 	return segments
 end

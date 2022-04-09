@@ -1,42 +1,55 @@
-playerUpdateInventoryBar = function(self)
-	local _itemDisplay = itemDisplay
-	for i=1, 9 do
-		_itemDisplay(self.inventory.slot[27+i], self.name, true)
-	end
-end
-
-playerGetInventorySlot = function(self, id)
+--[[playerGetInventorySlot = function(self, id)
 	if id then
 		if id < 100 then
 			if id >= 1 and id <= 36 then
-				return self.inventory.slot[id]
+				return self.inventory.bag.slot[id]
 			end
 		else
-			if id >= 101 and id <= 110 then
-				return self.inventory.interaction[id-100]
+			if id >= 101 and id <= 105 then
+				return self.inventory.craft.slot[id-100]
 			end
 		end
 	end
 	
 	return nil
-end
+end]]
 
-playerChangeSlot = function(self, slot)
-	local onBar = self.inventory.barActive	
+playerChangeSlot = function(self, stack, slot)
+	local onBar = self.inventory.barActive
+	local _stack
+	
+	if type(stack) == "string" or not stack then
+		_stack = self.inventory[(stack or "invbar")]
+	else
+		_stack = stack
+	end
+	
+	
 	local dx, dy
 	
-	if not slot or not ((slot >= 1 and slot <= 36) or (slot > 100 and slot <= 110)) then slot = 1 end
-	self.inventory.selectedSlot = slot
+	if type(slot) == "number" then
+		if slot >= 1 and slot <= #_stack.slot then
+			slot = _stack.slot[slot]
+		end
+	else
+		if type(slot) ~= "table" then
+			slot = nil
+		end
+	end
 	
-	local select = playerGetInventorySlot(self, slot)
-	dx, dy = itemReturnDisplayPositions(select, self.name)
+	if not slot then
+		slot = _stack.slot[1]
+	end
+	self.inventory.selectedSlot = slot
+	--local select = playerGetInventorySlot(self, slot)
+	dx, dy = slot.dx, slot.dy + ((self.inventory.barActive or slot.stack ~= "invbar") and 0 or -34)-- itemReturnDisplayPositions(select, self.name)
 	
 	if self.inventory.slotSprite then tfm.exec.removeImage(self.inventory.slotSprite) end
 	if dx and dy then
-		local scale = (slot == 110 and (self.inventory.interaction.crafting == 9 and 1.5 or 1.0) or 1.0)
+		local scale = slot.scale
 		self.inventory.slotSprite = tfm.exec.addImage(
-			"17e4653605e.png", ":10",
-			dx-9, (dy-12)+((onBar and slot ~= 110) and 34 or 0),
+			"17e4653605e.png", "~10",
+			dx-3, dy-3,
 			self.name,
 			scale, scale,
 			0.0, 1.0,
@@ -44,97 +57,226 @@ playerChangeSlot = function(self, slot)
 		)
 	end
 	
-	if select.itemId ~= 0 then	
-		playerAlert(self, objectMetadata[select.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
+	if slot.itemId ~= 0 then	
+		playerAlert(self, objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
 	else
 		eventTextAreaCallback(1001, self.name, "clear")
 	end
+	
+	playerActualizeHoldingItem(self)
 end
 
-inventorySlotsDisplay = function(self, limit)
-	local _itemDisplay = itemDisplay
-	for i=1, 36 do
-		_itemDisplay(self.slot[i], self.owner)
-		if i <= limit or i == 10 then
-			_itemDisplay(self.interaction[i], self.owner)
-		end
-	end
-end
-
-playerDisplayInventory = function(self, type)
-	local identifier, lim
+playerDisplayInventory = function(self, list)
+	local _inv = self.inventory
 	self.inventory.barActive = false
 	
 	self.inventory.displaying = true
 	
-	if type == "inventory" then
-		self.inventory.interaction.crafting = 4
-		identifier = "17eb175a263.png"
-	elseif type == "craft" then
-		self.inventory.interaction.crafting = 9
-		identifier = "17eb1755684.png"
-	elseif type == "furnace" then
-		self.inventory.interaction.furnacing = true
-		identifier = "17eb175ee63.png"
+	local width = 332
+	local height = 316
+	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
+	
+	stackHide(self.inventory.invbar)
+	
+	local stack, xo, yo, stdisp
+	for _, obj in next, list do
+		stack, xo, yo, stdisp = table.unpack(obj)
+		stackDisplay(self.inventory[stack], xo, yo, stdisp)
 	end
-	
-	lim = self.inventory.interaction.crafting or 2
-		
-	if self.inventory.sprite then tfm.exec.removeImage(self.inventory.sprite) end
-	
-	self.inventory.sprite = tfm.exec.addImage(
-		identifier, ":1",
-		234, 42,
-		self.name,
-		1.0, 1.0,
-		0.0, 1.0,
-		0.0, 0.0
-	)
-	playerChangeSlot(self, self.inventory.selectedSlot)
-	
-	inventorySlotsDisplay(self.inventory, lim)
+
+	playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot)
 end
 
 playerDisplayInventoryBar = function(self)
 	self.inventory.barActive = true
+	playerHideInventory(self)
 	
-	if self.inventory.sprite then tfm.exec.removeImage(self.inventory.sprite) end
+	stackDisplay(self.inventory.invbar, 0, 0, true)
 	
-	self.inventory.sprite = tfm.exec.addImage(
-		"17e464e9c5d.png", ":1",
-		245, 350,
-		self.name,
-		1.0, 1.0,
-		0.0, 0.85,
-		0.0, 0.0
-	)
-	
-	if self.inventory.selectedSlot <= 27 then
-		playerChangeSlot(self, 27 + ((self.inventory.selectedSlot-1)%9)+1)
-	elseif self.inventory.selectedSlot > 100 then
-		playerChangeSlot(self, 28)
-	else
-		playerChangeSlot(self, self.inventory.selectedSlot)
+	local _inv = self.inventory
+	local slot = _inv.selectedSlot
+	if type(slot) == "table" then
+		playerChangeSlot(self, "invbar", ((slot.id-1)%9) + 1)
 	end
-	playerUpdateInventoryBar(self)
+end
+
+playerUpdateInventoryBar = function(self)
+	local _inv = self.inventory
+	local yoff = _inv.barActive and 0 or -36
+	stackRefresh(_inv.invbar, 0, yoff, _inv.barActive)
+	playerChangeSlot(self, "invbar", ((_inv.selectedSlot.id-1)%9) + 1)
 end
 
 playerHideInventory = function(self)
-	self.inventory.interaction.crafting = false
-	self.inventory.interaction.furnacing = false
 	self.inventory.displaying = false
-	local item
-	local _itemHide, _itemRemove, _inventoryInsertItem = itemHide, itemRemove, inventoryInsertItem
+	local _itemRemove = itemRemove
 	
-	for i=1, 36 do
-		_itemHide(self.inventory.slot[i], self.name)
-		if i <= 10 then
-			item = self.inventory.interaction[i]
-			_itemHide(item, self.name)
-			if i ~= 10 then _inventoryInsertItem(self.inventory, item.itemId, item.amount, false, false) end
-			_itemRemove(self.inventory.interaction[i], self.name)
+	stackHide(self.inventory.bag)
+	stackHide(self.inventory.invbar)
+	stackHide(self.inventory.craft)
+	stackHide(self.inventory.armor)
+	
+	ui.removeTextArea(888, self.name)
+	
+	local element
+	
+	local stack = self.inventory.craft
+	if stack.output then
+		for key, element in next, stack.slot do
+			if key < stack.output then
+				playerInventoryInsert(self, element.itemId, element.amount, "bag", false)
+			end
+			_itemRemove(element)
 		end
 	end
 	
-	playerDisplayInventoryBar(self)
+	self.displaying = false
+end
+
+playerGetStack = function(self, targetStack, targetSlot)
+	local stack
+	
+	if type(targetStack) == "table" then
+		stack = targetStack.identifier
+	elseif type(targetStack) == "string" then
+		stack = targetStack
+	else
+		if targetStack == true then
+			stack = self.inventory.selectedSlot.stack
+		else
+			if type(targetSlot) == "table" then
+				stack = targetSlot.stack
+			elseif targetSlot == true then
+				stack = self.inventory.selectedSlot.stack
+			end
+		end
+	end
+	
+	return stack
+end
+
+playerInventoryInsert = function(self, itemId, amount, targetStack, targetSlot)
+	local _inv = self.inventory
+
+	local stack, slot = playerGetStack(self, targetStack, targetSlot)
+
+	local success = stackInsertItem(_inv[stack], itemId, amount, targetSlot)
+	if not success then
+		return stackInsertItem(_inv.bag, itemId, amount, targetSlot)
+	end
+
+	return success
+end
+
+playerInventoryExtract = function(self, itemId, amount, targetStack, targetSlot)
+	local _inv = self.inventory
+	local stack, slot = playerGetStack(self, targetStack, targetSlot)
+
+	if _inv[stack] then
+		return stackExtractItem(_inv[stack], itemId, amount, targetSlot or _inv.selectedSlot)
+	end
+end
+
+playerMoveItem = function(self, origin, select, display)
+	local destinatary, pass
+	local newSlot = select
+	
+	local onBar = self.inventory.barActive
+	
+	if select.allowInsert then
+		if self.trade.isActive then
+			destinatary = room.player[self.trade.whom]
+			pass = {self.name, self.trade.whom}
+			select = destinatary.inventory.bag.slot[1]
+		else
+			destinatary = self
+			pass = self.name
+		end
+		
+		do -- Movement
+			if self.keys[17] then
+				origin, select, newSlot = itemMove(origin, select, 0, pass)
+			elseif self.keys[16] then
+				local amount = (origin.id == 0 and 0 or 1)
+				origin, select, newSlot = itemMove(origin, select, amount, pass)
+			end
+		end
+		
+		if display then
+			if select then
+				local onBar = destinatary.inventory.barActive
+				local onInv = select.stack == "invbar"
+				if (onInv and onBar) or not onBar then
+					itemRefresh(select, destinatary.name, 0,
+						onInv and (onBar and 0 or -36) or 0
+					)
+				end
+			end
+			
+			if origin then
+				local onBar = self.inventory.barActive
+				local onInv = origin.stack == "invbar"
+				if (onInv and onBar) or not onBar then
+					itemRefresh(origin, self.name, 0,
+						onInv and (onBar and 0 or -36) or 0
+					)
+				end
+			end
+		end
+	end
+	
+	return select, newSlot
+end
+--[[
+playerHudInteract = function(self, select, blockObject)
+	local origin = self.inventory.selectedSlot
+	
+	local destiny = self.inventory[select.stack]
+	local source = self.inventory[origin.stack]
+	
+	local item, itemList = select:callback(self, blockObject)
+	if not (item and itemList) then
+		item, itemList = origin:callback(self, blockObject)
+	end
+end]]
+
+playerHudInteract = function(self, stackTarget, select, blockObject)
+	local origin = self.inventory.selectedSlot
+	
+	local destiny = self.inventory[stackTarget]
+	local source = self.inventory[origin.stack]
+	
+	local output = source.output and source.slot[source.output] or nil
+	
+	local _item, itemList = select:callback(self, blockObject)
+	
+	if not (_item and itemList) then
+		_item, itemList = origin:callback(self, blockObject)
+	end
+	
+	if _item and itemList then
+		if _item.id == origin.id then
+			if select.id ~= origin.id then
+				for _, element in next, itemList do
+					playerInventoryExtract(
+							self,
+							element.itemId, 1,
+							self.inventory[_item.stack],
+							element
+					)
+					
+					itemRefresh(element, self.name, 0, 0)
+				end
+				itemRemove(_item, self.name)
+			else
+				itemRefresh(_item, self.name, 0, 0)
+			end
+		else
+			itemDisplay(_item, self.name)
+		end
+	else
+		if output then
+			itemRemove(output, self.name)
+		end
+	end
 end

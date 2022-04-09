@@ -1,42 +1,17 @@
-itemReturnDisplayPositions = function(self, playerName)
-	local player = room.player[playerName]
-	local dx, dy
-	
-	if type(self.dx) == "number" then
-		dx = self.dx
-	else
-		if player.inventory.interaction.crafting then
-			dx = self.dx.craft[player.inventory.interaction.crafting]
-		elseif player.inventory.interaction.furnacing then
-			dx = self.dx.furnace
-		end
-	end
-	
-	if type(self.dy) == "number" then
-		dy = self.dy
-	else
-		if player.inventory.interaction.crafting then
-			dy = self.dy.craft[player.inventory.interaction.crafting]
-		elseif player.inventory.interaction.furnacing then
-			dy = self.dy.furnace
-		end
-	end
-	
-	return dx, dy
-end
 
-itemDisplay = function(self, playerName, onInventoryBar)
+itemDisplay = function(self, playerName, xOffset, yOffset)
 	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
 	
-	local dx, dy = itemReturnDisplayPositions(self, playerName)
-	local scale = (self.id == 110 and (room.player[playerName].inventory.interaction.crafting == 9 and 1.5 or 1.0) or 1.0)
-	dy = dy + (onInventoryBar and 34 or 0)
+	local scale = self.size / 32
+	local dx = self.dx + (xOffset or 0) + (8*scale)
+	local dy = self.dy + (yOffset or 0) + (8*scale)
+
 	local _ui_addTextArea, _ui_removeTextArea = ui.addTextArea, ui.removeTextArea
 	
 	if self.itemId ~= 0 then
 		self.sprite[2] = tfm.exec.addImage(
 			self.sprite[1],
-			":"..(self.id+10),
+			"~"..(self.id+100),
 			dx, dy,
 			playerName,
 			scale/1.8823, scale/1.8823,
@@ -44,31 +19,29 @@ itemDisplay = function(self, playerName, onInventoryBar)
 			0, 0
 		)
 		
-		if self.stackable then
-			_ui_addTextArea(
-				self.id+60,
-				string.format("<p align='center'><font size='"..(13*scale).."'><VP><b>%d", self.amount),
-				playerName,
-				dx-(9*scale), dy,
-				34*scale, 0,
-				0x000000, 0x000000,
-				1.0, true
-			)
+		if self.stackable and self.amount > 1 then
+			local text = "<p align='center'><font face='Consolas' size='"..(12.4*scale).."'>" .. self.amount
+			local xpos = dx-(9*scale)
+			local scl = 34*scale
+			_ui_addTextArea(self.id+500, "<font color='#000000'><b>" .. text, playerName, xpos+1, dy+1, scl, 0, 0x000000, 0x000000, 1.0, true)
+			_ui_addTextArea(self.id+650, "<VP>" .. text, playerName, xpos, dy, scl, 0,	0x000000, 0x000000,	1.0, true)
 		else
-			_ui_removeTextArea(self.id+60, playerName)
+			_ui_removeTextArea(self.id+500, playerName)
+			_ui_removeTextArea(self.id+650, playerName)
 		end
 	else
 		self.sprite[2] = nil
-		_ui_removeTextArea(self.id+60, playerName)
+		_ui_removeTextArea(self.id+500, playerName)
+		_ui_removeTextArea(self.id+650, playerName)
 	end
 	
 	_ui_addTextArea(
-		self.id+110,
-		"<textformat leftmargin='1' rightmargin='1'><a href='event:"..(self.id > 100 and "interaction" or "inventory").."'>\n\n\n\n\n\n\n\n\n\n\n\n", 
+		self.id+350,
+		"<textformat leftmargin='1' rightmargin='1'><a href='event:"..self.stack.."'>\n\n\n\n\n\n\n\n\n\n\n\n</a></textformat>", 
 		playerName, 
-		dx - (10*scale), dy - (10*scale), --350
-		37*scale, 32*scale, 
-		0x000001, 0x000001, 
+		self.dx + (xOffset or 0) - (1*scale), self.dy + (yOffset or 0) - (1*scale), --350
+		32*scale, 32*scale, 
+		0x000000, 0x000000, 
 		0, true
 	)
 	
@@ -76,9 +49,18 @@ itemDisplay = function(self, playerName, onInventoryBar)
 end
 
 itemHide = function(self, playerName)
-	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
-	self.sprite[2] = nil
+	if self.sprite[2] then
+		tfm.exec.removeImage(self.sprite[2])
+		self.sprite[2] = nil
+	end
 	
-	ui.removeTextArea(self.id+60, playerName)
-	ui.removeTextArea(self.id+110, playerName)
+	local _ui_removeTextArea = ui.removeTextArea
+	_ui_removeTextArea(self.id+350, playerName)
+	_ui_removeTextArea(self.id+500, playerName)
+	_ui_removeTextArea(self.id+650, playerName)
+end
+
+itemRefresh = function(self, playerName, xOffset, yOffset)
+	itemHide(self, playerName)
+	itemDisplay(self, playerName, xOffset, yOffset)
 end

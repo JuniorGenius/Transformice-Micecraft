@@ -1,10 +1,10 @@
 onEvent("LoadFinished", function()
-  modulo.loading = false
+	modulo.loading = false
   
 	ui.removeTextArea(999, nil)
-  for _, img in next, modulo.loadImg[2] do
-    tfm.exec.removeImage(img)
-  end
+	for _, img in next, modulo.loadImg[2] do
+		tfm.exec.removeImage(img)
+	end
 
 	tfm.exec.setWorldGravity(0, 10)
 	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
@@ -16,10 +16,11 @@ require("Loop")
 onEvent("Keyboard", function(playerName, key, down, x, y)
 	if timer > awaitTime and room.player[playerName] then
 		if down then
-			room.player[playerName].keys[key+1] = true
+			room.player[playerName].keys[key] = true
 			
 			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
-				playerChangeSlot(room.player[playerName], 27 + (key - (key <= 57 and 48 or 96)))
+				local slot = key - (key <= 57 and 48 or 96)
+				playerChangeSlot(room.player[playerName], "invbar", slot)
 			end
 			
 			if key == 72 then -- H
@@ -30,8 +31,15 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			elseif key == 69 then -- E
 				if room.player[playerName].inventory.displaying then
 					playerHideInventory(room.player[playerName])
+					playerDisplayInventoryBar(room.player[playerName])
 				else
-					playerDisplayInventory(room.player[playerName], "inventory")
+					playerDisplayInventory(
+						room.player[playerName],
+						{{"bag", 0, 0, true}, 
+						{"invbar", 0, -36, false}, 
+						{"craft", 0, 0, true}, 
+						{"armor", 0, 0, true}}
+					)
 				end
 			elseif key == 71 then -- G
 				if room.player[playerName].trade.isActive then 
@@ -41,11 +49,18 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 				end
 			end
 		else
-			room.player[playerName].keys[key+1] = false
+			room.player[playerName].keys[key] = false
 		end
 		
 		if room.player[playerName] and timer > awaitTime then
-			if room.player[playerName].isAlive then playerActualizeInfo(room.player[playerName], x, y, _, _, key < 4 and (key%2==0 and key==2 or nil) or nil) end
+			local facingRight
+			if key < 4 and key%2 == 0 then
+				facingRight = key == 2
+			end
+			
+			if room.player[playerName].isAlive then
+				playerActualizeInfo(room.player[playerName], x, y, _, _, facingRight)
+			end
 		end
 	end
 end)
@@ -56,21 +71,21 @@ onEvent("Mouse", function(playerName, x, y)
 			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 				local block = getPosBlock(x, y-200)
 				local isKeyActive = room.player[playerName].keys
-				if isKeyActive[19] then -- debug
-					if isKeyActive[18] then
+				if isKeyActive[18] then -- debug
+					if isKeyActive[17] then
 						printt(map.chunk[block.chunk].grounds[1][block.act])
 					else
 						printt(block)
 					end
-				elseif isKeyActive[18] then
-					playerBlockInteract(room.player[playerName], getPosBlock(x, y-200))
 				elseif isKeyActive[17] then
-					playerPlaceObject(room.player[playerName], x, y, isKeyActive[33])
+					playerBlockInteract(room.player[playerName], getPosBlock(x, y-200))
+				elseif isKeyActive[16] then
+					playerPlaceObject(room.player[playerName], x, y, isKeyActive[32])
 				else
 					if block.id ~= 0 then
 						playerDestroyBlock(room.player[playerName], x, y)
 					else
-						room.player[playerName].inventory.slot[room.player[playerName].inventory.selectedSlot]:onHit(x, y)
+						room.player[playerName].inventory.selectedSlot:onHit(x, y)
 					end
 				end
 			end
@@ -91,7 +106,7 @@ end)
 
 onEvent("PlayerRespawn", function(playerName)
 	if room.player[playerName] then
-		tfm.exec.movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
+		_movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
 		playerActualizeInfo(room.player[playerName], map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
 	end
 end)
@@ -100,6 +115,10 @@ onEvent("NewPlayer", function(playerName)
 	startPlayer(playerName, map.spawnPoint)
 	tfm.exec.addImage("17e464d1bd5.png", "?512", 0, 8, playerName, 32, 32, 0, 1.0, 0, 0)
 	ui.addTextArea(0, "<p align='right'><font size='18' face='Consolas'> <a href='event:help'>Help</a> ", playerName, 600, 375, 200, 25, 0x000000, 0x000000, 1.0, true)
+	
+	if not room.isTribe then
+		tfm.exec.lowerSyncDelay(playerName)
+	end
 end)
 
 onEvent("PlayerLeft", function(playerName)
@@ -126,14 +145,14 @@ onEvent("ChatCommand", function(playerName, command)
 			local withinRange = function(a, b) return (a >= 0 and a <= 32640) and (b >= 0 and b <= 8392) end
 			
 			if pa and pb then
-				if withinRange(pa, pb) then tfm.exec.movePlayer(playerName, pa, pb) end
+				if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
 			elseif not pa or not pb then
 				local pl = room.player[ args[2] ]
 				if pl then
 					if pl.isAlive then
 						pa = pl.x
 						pb = pl.y
-						if withinRange(pa, pb) then tfm.exec.movePlayer(playerName, pa, pb) end
+						if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
 					end
 				end
 			end
@@ -142,20 +161,25 @@ onEvent("ChatCommand", function(playerName, command)
 		local player = room.player[args[2]]
 		
 		if player then printt(player, {"keys", "slot", "interaction"}) end
-  elseif args[1] == "announce" or "chatannounce" then
-    if playerName == modulo.creator then
-      local _output = "<CEP><b>[Room Announcement]</b></CEP> <D>"
-      for i=2, #args do
-        _output = _output .. args[i] .. " "
-      end
-      _output = _output .. "</D>"
+	elseif args[1] == "announce" or args[1] == "chatannounce" then
+		if playerName == modulo.creator then
+			local _output = "<CEP><b>[Room Announcement]</b></CEP> <D>"
+			for i=2, #args do
+				_output = _output .. args[i] .. " "
+			end
+			_output = _output .. "</D>"
       
-      if args[1] == "chatannounce" then
-        tfm.exec.chatMessage(_output, nil)
-      else
-        ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
-      end
-    end
+			if args[1] == "chatannounce" then
+				tfm.exec.chatMessage(_output, nil)
+			else
+			ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
+			end
+		end
+	elseif args[1] == "stackFill" then
+		local player = room.player[args[4] or playerName]
+		if playerName == modulo.creator then
+			stackFill(player.inventory.bag, tonumber(args[2]), tonumber(args[3]) or 64)
+		end
 	end
 end)
 
@@ -216,13 +240,18 @@ end)
 
 
 onEvent("NewGame", function()
-	generateBoundGrounds()
-	tfm.exec.setGameTime(0)
-	ui.setMapName(modulo.name)
-	tfm.exec.setWorldGravity(0, 0)
-	
-	for name, _ in next, tfm.get.room.playerList do
-		eventNewPlayer(name)
-		eventPlayerRespawn(name)
+	if timer <= 10000 then
+		generateBoundGrounds()
+		tfm.exec.setGameTime(0)
+		ui.setMapName(modulo.name)
+		tfm.exec.setWorldGravity(0, 0)
+		
+		for name, _ in next, tfm.get.room.playerList do
+			eventNewPlayer(name)
+			eventPlayerRespawn(name)
+		end
+	else
+		--appendEvent(3100, tfm.exec.newGame, xmlLoad)
+		error("New map loaded.")
 	end
 end)

@@ -15,7 +15,7 @@ end
 local _tfm_exec_removeImage = tfm.exec.removeImage
 
 local blockHide = function(self)
-	if self.type > 0 then
+	if self.type ~= 0 then
 		local _removeImage = _tfm_exec_removeImage
 		local sprite = self.sprite[2]
 		for k=1, 4 do

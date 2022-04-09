@@ -121,7 +121,10 @@ end
 
 chunkRefresh = function(self, update)
 	chunkDeactivate(self)
-	if update then chunkCalculateCollisions(self) end
+	if update then
+		chunkDelete(self)
+		chunkCalculateCollisions(self)
+	end
 	chunkActivate(self, true)
 	
 	return true

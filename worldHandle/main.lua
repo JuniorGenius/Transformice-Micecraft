@@ -31,7 +31,7 @@ handleChunksRefreshing = function()
 		if handle[i] then
 			if counter < peak and calls < lcalls then
 				lapse = _os_time()
-				ok, result = _pcall(handle[i][2], chunkList[handle[i][1]])
+				ok, result = _pcall(handle[i][2], chunkList[handle[i][1]], true)
 				if ok then
 					if result then
 						if handle[i][2] ~= chunkUnload then
@@ -63,7 +63,7 @@ handleChunksRefreshing = function()
 		map.timestamp = _os_time()
 	end
 	
-	modulo.runtimeLapse = counter
+	--modulo.runtimeLapse = counter
 	
 	return (_os_time() - dif), calls
 end
@@ -212,10 +212,11 @@ startPlayer = function(playerName, spawnPoint)
 		tfm.exec.setAieMode(true, 5.0, playerName)
 		eventPlayerDied(playerName, true)
 		
-		ui.addTextArea(777, "", playerName, 5, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+		ui.addTextArea(777, "", playerName, 5, 25, 200, 100, 0x000000, 0x000000, 1.0, true)
+		ui.addTextArea(778, "", playerName, 5.5, 26, 200, 100, 0x000000, 0x000000, 1.0, true)
 	
 		playerDisplayInventoryBar(room.player[playerName])
-		playerChangeSlot(room.player[playerName], 28)
+		playerChangeSlot(room.player[playerName], "invbar", 1)
 		
 		if timer > 3000 then
 			playerReachNearChunks(room.player[playerName], 1, true)
@@ -223,3 +224,65 @@ startPlayer = function(playerName, spawnPoint)
 	end
 end
 
+worldExplosion = function(x, y, radius, power, cause)
+    power = power or 1
+    local range = 2 + math.ceil(radius)
+    local distance = distance
+    local getPosBlock = getPosBlock
+	local blockDamage, blockDestroy = blockDamage, blockDestroy
+    local block, force, dist
+    local xx, yy
+    
+    local exp = 7
+    y = y - 200
+	
+	local destr = range * (3/4)
+	local ghost = range + (range-destr)
+	
+	local chunks = {}
+
+	local _table_insert = function(tbl, el)
+		if not tbl then tbl = {} end
+			
+		tbl[#tbl+1] = el
+		
+		return tbl
+	end
+    
+    for yf=-range, range do
+        yy = y + (yf*32)
+		
+        for xf=-range, range do
+            xx = x + (xf*32)
+            block = getPosBlock(xx, yy)
+            
+			if block.type > 0 then
+				dist = distance(xx, yy, x, y) / 32
+				if dist <= destr then
+					blockDestroy(block, true, cause, true)
+				end
+				
+				if dist <= ghost then
+					blockDestroy(block, true, cause, true)
+					
+					if not chunks[block.chunk] then chunks[block.chunk] = {} end
+					local n = #chunks[block.chunk]
+					chunks[block.chunk][n+1] = block
+				else
+					force = (radius / dist) * power
+					blockDamage(block, math.ceil(force*exp), cause)
+				end
+			end
+        end
+		
+    end
+
+	
+	for chunk, blockList in next, chunks do
+		if blockList then
+			chunkRefreshSegList(map.chunk[chunk], blockList)
+		end
+	end
+	
+	tfm.exec.explosion(x, y+200, 15*power, range*32, false)
+end

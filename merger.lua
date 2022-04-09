@@ -9,7 +9,9 @@
 	the merge will be 'micecraft.lua', which should be able
 	to be loaded into the game without any problem.
 ]]
+
 local depth = 0
+
 local wrap
 wrap = function(root, filename)
 	local __file = io.open("./" .. root .. "/" .. filename .. ".lua", 'r')
@@ -28,16 +30,42 @@ wrap = function(root, filename)
 	end
 
 	local req = function(file)
-    if file:sub(1, 7) == "require" then
-      file = file:sub(10, -3)
-    end
-    return wrap(root, file)
-  end
+		if file:sub(1, 7) == "require" then
+			file = file:sub(10, -3)
+		end
+		
+		return wrap(root, file)
+	end
 	
 	return filestr:gsub('require%(".-"%)', req), "success"
 end
 
+local generatePrototype = function(wrappedFile)
+	local file = "\n\t\n\t" .. wrappedFile
+	local proto = "\nlocal "
+	local _ff
+	local prototypes = {}
+	
+	for _prev, _function in file:gmatch("(.-)%s([_%w]+)%s-=%s-function%(.-%)") do
+		if _prev:gsub("%s", ""):sub(-5, -1) ~= "local" then
+			table.insert(prototypes, _function)
+		end
+	end
+
+	for i=1, #prototypes do
+		_ff = prototypes[i]
+		proto = proto .. (i==1 and "\t" or"\t\t") .. _ff .. (i ~= #prototypes and ",\n" or "\n\n\n")
+	end
+
+	return proto
+end
+
+local _failure = function(message)
+	print("Error detected on checking over 'micecraft.lua': " .. message)
+end
+
 do
+	local prototypesBuild = ""
 	local __builder, success = io.open("./builder.lua", 'r')
 	local builder
 	if __builder then
@@ -53,11 +81,33 @@ do
 		_fwrap, status = wrap(dir, "main")
 		print(string.format(" [%s] %s", status, dir))
 		build = build .. ("\n\n" .. "-- " .. string.rep("=", 10) .. '\t' .. string.upper(dir) .. '\t' .. string.rep("=", 10)) .. " --\n\n" .. _fwrap
+		
+		if dir ~= "resources" and dir ~= "main" and dir ~= "events" then 	prototypesBuild = prototypesBuild .. generatePrototype(_fwrap)
+		end
 	end
 	
+	build = build:gsub("-- @prototypes", prototypesBuild)
+	build = build .. ("\n\n-- " .. os.date("%d/%m/%Y %H:%M:%S") .. " --")
+	
 	local newBuild = io.open("./micecraft.lua", 'w')
-	newBuild:write(build .. ("\n\n-- " .. os.date("%d/%m/%Y %H:%M:%S") .. " --"))
+	newBuild:write(build)
 	newBuild:close()
 	
-	print("Success.")
+	local exec, loadres = load('require("tfmenv")\n' .. build)-- .. "\n eventNewGame(); eventLoop()")
+	if exec then
+		local ok, result = pcall(exec)
+		if ok then
+			print("Module 'micecraft.lua' builded successfully. No errors.\n" .. build:len() .. " characters long\n")
+			return
+		else
+			_failure(result)
+		end
+	else
+		_failure(loadres)
+	end
 end
+
+
+
+
+

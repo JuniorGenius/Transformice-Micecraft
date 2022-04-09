@@ -34,6 +34,8 @@ local main = function()
 			particles = _ref.particles or {},
 			interact = _ref.interact or false,
 			
+			handle = _ref.handle,
+			
 			onCreate = _ref.onCreate or dummyFunc,
 			onPlacement = _ref.onPlacement or dummyFunc,
 			onDestroy = _ref.onDestroy or dummyFunc,
@@ -41,7 +43,8 @@ local main = function()
 			onHit = _ref.onHit or dummyFunc,
 			onDamage = _ref.onDamage or dummyFunc,
 			onContact = _ref.onContact or dummyFunc,
-			onUpdate = _ref.onUpdate or dummyFunc
+			onUpdate = _ref.onUpdate or dummyFunc,
+			onAwait = _ref.onAwait or dummyFunc
 		}
 	end
 	
@@ -52,12 +55,13 @@ local main = function()
 		tfm.exec.disableAutoShaman(true)
 		tfm.exec.disableAutoTimeLeft(true)
 		tfm.exec.disablePhysicalConsumables(true)
+		tfm.exec.disableWatchCommand(true)
 		
 		system.disableChatCommandDisplay(nil)
 		
 		
 		if not room.isTribe then
-			tfm.exec.setRoomMaxPlayers(5)
+			tfm.exec.setRoomMaxPlayers(7)
 			tfm.exec.setPlayerSync(nil) 
 			tfm.exec.disableDebugCommand(true)
 		end
@@ -83,8 +87,6 @@ local main = function()
 	tfm.exec.newGame(xmlLoad)
 end
 
-main()
+require("resources")
 
-end
-
-xpcall(game, errorHandler)
+xpcall(main, errorHandler)

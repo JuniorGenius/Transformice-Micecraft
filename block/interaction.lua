@@ -1,31 +1,47 @@
 
-blockDestroy = function(self, display, playerObject)
-	if self.type ~= 256 then
+blockDestroy = function(self, display, playerObject, dontUpdate)
+	if self.type > 0 and self.type < 256 then
+		self.timestamp = os.time()
 		if display then blockHide(self) end
 		
+		self:onDestroy(playerObject)
 		if self.ghost then
 			self.type = 0
+			self.timestamp = -os.time()
+			self.handle = nil
+			
+			self.onCreate = dummyFunc
+			self.onPlacement = dummyFunc
+			self.onDestroy = dummyFunc
+			self.onInteract = dummyFunc
+			self.onHit = dummyFunc
+			self.onDamage = dummyFunc
+			self.onContact = dummyFunc
+			self.onUpdate =dummyFunc
+			self.onAwait = dummyFunc
 		else
-			local meta = objectMetadata[self.type]
+			--local meta = objectMetadata[self.type]
 			self.ghost = true
 			self.alpha = 1.0
 			self.shadowness = 0.33
 			self.damage = 0
 			--spreadParticles(meta.particles, 7, "drop", {self.dx+8, self.dx+24}, {self.dy+8, self.dy+24})
-			self:onDestroy(playerObject)
 			if display then blockDisplay(self) end
 		end
 		
-		do
+		if not dontUpdate then
 			local blockList = getBlocksAround(self, true)
-			self:onUpdate(playerObject, blockList)
+			for _, block in next, blockList do
+				block:onUpdate(playerObject)
+			end
 			chunkRefreshSegList(map.chunk[self.chunk], blockList)
 		end
 	end
 end
 
 blockCreate = function(self, type, ghost, display, playerObject)
-	if type ~= 0 then
+	if type > 0 and type < 256 then
+		self.timestamp = os.time()
 		local meta = objectMetadata[type]
 		self.type = type
 		self.ghost = ghost or false
@@ -48,7 +64,9 @@ blockCreate = function(self, type, ghost, display, playerObject)
 		self.onUpdate = meta.onUpdate
 		self.onDamage = meta.onDamage
 		self.onContact = meta.onContact
+		self.onAwait = meta.onAwait
 		
+		self.isTangible = self.type ~= 0 and (not self.ghost)
 		
 		self.sprite[1] = {
 			meta.sprite or nil,
@@ -60,8 +78,15 @@ blockCreate = function(self, type, ghost, display, playerObject)
 		self:onPlacement(playerObject)
 		
 		if self.interact then
+			if meta.handle then
+
+				self.handle = meta.handle[1](
+					table.unpack(meta.handle, 2, #meta.handle)
+				)
+			end
 			map.chunk[self.chunk].interactable[self.id] = self
 		else
+			self.handle = nil
 			map.chunk[self.chunk].interactable[self.id] = nil
 		end
 		
@@ -72,7 +97,9 @@ blockCreate = function(self, type, ghost, display, playerObject)
 		
 		if timer >= awaitTime and not self.ghost then
 			local blockList = getBlocksAround(self, true)
-			self:onUpdate(playerObject, blockList)
+			for _, block in next, blockList do
+				block:onUpdate(playerObject)
+			end
 			chunkRefreshSegList(map.chunk[self.chunk], blockList)
 		end
 	end
@@ -96,11 +123,35 @@ blockDamage = function(self, amount, playerObject)
 				blockDisplay(self)
 			end
 			
+			if self.damage > 0 then 
+				appendEvent(5000, blockRepair, self, 1, Player)
+			end
+			
 			self:onDamage(playerObject)
 		end
 	end
 	
 	return false
+end
+
+blockRepair = function(self, amount, playerObject)
+	if amount > self.damage then amount = self.damage end
+	
+	if self.damage > 0 then
+		return not blockDamage(self, -amount, playerObject)
+	end
+	
+	return false
+end
+
+blockGetInventory = function(self)
+	if self.handle then
+		local inv
+	
+		inv = self.handle
+		inv.id = self.gid
+		return inv
+	end
 end
 
 blockInteract = function(self, playerObject)

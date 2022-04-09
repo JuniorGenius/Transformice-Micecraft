@@ -2,6 +2,8 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 	local xp, yp = getTruePosMatrix(chunk, x, y)
 	yp = 256-yp
 	
+	
+	local tang = type ~= 0 and (not ghost)
 	local meta = objectMetadata[type]
 	
 	local id = ((x-1)*32) + y
@@ -13,14 +15,16 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		
 		id = id,
 		gid = ((chunk-1)*384) + id,
-		act = (type == 0 or ghost) and 0 or -1,
+		act = tang and -1 or 0,
 		chunk = chunk,
 
 		type = type,
 		ghost = ghost,
 		glow = glow,
 		translucent = translucent,
-		mossy = mossye,
+		mossy = mossy,
+		
+		isTangible = tang,
 		
 		damage = damage or 0,
 		damagePhase = 0,
@@ -32,7 +36,11 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		dx = xp*32,
 		dy = ((256-yp)*32)+200,
 		
+		timestamp = 0,
+		event = 0,
+		
 		interact = meta.interact,
+		handle = (meta.handle),
 		
 		onInteract = meta.onInteract,
 		onDestroy = meta.onDestroy,
@@ -41,7 +49,8 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		onHit = meta.onHit,
 		onUpdate = meta.onUpdate,
 		onDamage = meta.onDamage,
-		onContact = meta.onContact
+		onContact = meta.onContact,
+		onAwait = meta.onAwait
 	}
 	
 	--[[if type ~= 0 then

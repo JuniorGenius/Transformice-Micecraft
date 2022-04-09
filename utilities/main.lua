@@ -55,6 +55,9 @@ cosineInterpolate = function(a, b, x)
 end
 
 generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceStart, width, heightMid)
+	local _math_random = math.random
+	local _math_floor = math.floor
+	local _cosInt = cosineInterpolate
 	if seed then math.randomseed(seed) end
 	
 	local heightMap = {}
@@ -62,18 +65,18 @@ generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceStart, wi
 	local wl = waveLength or 24 -- 64
 	local x, y = 0, surfaceStart or 128 -- 1, 128
 	local hval = heightMid or 128
-	local a, b = math.random(), math.random()
+	local a, b = _math_random(), _math_random()
 	
 	while x < width do
 		if x%wl == 0 then
 			a = b
-			b = math.random()
+			b = _math_random()
 			y = hval + (a*amp)
 		else
-			y = hval + (cosineInterpolate(a, b, (x%wl)/wl) * amp)
+			y = hval + (_cosInt(a, b, (x%wl)/wl) * amp)
 		end
 		
-		heightMap[x+1] = math.floor(y+0.5) or 1
+		heightMap[x+1] = _math_floor(y+0.5) or 1
 		
 		x = x + 1
 	end
@@ -126,34 +129,38 @@ printt = function(var, except)
 	print("<N2>" .. val .. "</N2>")
 end
 
+local _math_floor = math.floor
 getPosChunk = function(x, y, passObject)
-	if x < 0 then x = 1 
-	elseif x > 32640 then x = 32639 end
-	if y < 0 then y = 1
-	elseif y > 8192 then y = 8191 end
+	if x < 0 then x = 0
+	elseif x > 32640 then x = 32640 end
+	if y < 0 then y = 0
+	elseif y > 8192 then y = 8192 end
+	local _mf = _math_floor
 	
-	local yc = 85*math.floor((y/32)/32)
-	local xc = math.floor((x/32)/12)
+	local yc = 85*_mf((y/32)/32)
+	local xc = _mf((x/32)/12)
 	local eq = yc + xc + 1
+	
 	return passObject and map.chunk[eq] or eq
 end
 
 getPosBlock = function(x, y)
-	if x < 0 then x = 1 
-	elseif x > 32640 then x = 32639 end
-	if y < 0 then y = 1
-	elseif y > 8192 then y = 8191 end
+	if x < 0 then x = 0
+	elseif x > 32640 then x = 32640 end
+	if y < 0 then y = 0
+	elseif y > 8192 then y = 8192 end
 
-	local chunk = getPosChunk(x, y)
-	return map.chunk[chunk].block[1+(math.floor(y/32)%32)][1+(math.floor(x/32)%12)]
+	local chunk = getPosChunk(x, y, true)
+	return chunk.block[1+(_math_floor(y/32)%32)][1+(_math_floor(x/32)%12)]
 end
 
 getTruePosMatrix = function(chunk, x, y)
-	return (((chunk-1)%85)*12)+(x-1), (math.floor((chunk-1)/85)*32)+(y-1)
+	local ch = chunk-1
+	return ((ch%85)*12)+(x-1), (_math_floor(ch/85)*32)+(y-1)
 end
 
 spreadParticles = function(particles, amount, kind, xor, yor)
-	local particles = (type(particles) == "number" and {particles} or particles)
+	local particles = (type(particles) == "number" and {particles} or (particles or 0))
 	local ax, bx, ay, by
 	if type(xor) == "table" then
 		ax = xor[1]
@@ -192,17 +199,20 @@ spreadParticles = function(particles, amount, kind, xor, yor)
 	end
 end
 
+local _table_insert = table.insert
+
 getBlocksAround = function(self, include, cross)
 	local condition
 	local blockList = {}
 	
-	local _table_insert, _getPosBlock = table.insert, getPosBlock
+	local _getPosBlock = getPosBlock
+	local xp, yp = self.dx + 16, self.dy - 184
 	
 	for i=-1, 1 do
 		for j=-1, 1 do
 			condition = (not cross and (true) or (j==0 or i==0))
 			if ((not (i==0 and j==0)) or include) and condition then
-				_table_insert(blockList, _getPosBlock((self.dx+16) + (32*j), (self.dy-184) + (32*i)))
+				blockList[#blockList+1] = _getPosBlock(xp+(32*j), yp+(32*i))
 			end
 		end
 	end
@@ -222,3 +232,39 @@ removePhysicObject = function(id)
 	globalGrounds = globalGrounds - 1
 end
 
+local _tfm_exec_movePlayer = tfm.exec.movePlayer
+local _movePlayer = function(playerName, xPosition, yPosition, positionOffset, xSpeed, ySpeed, speedOffset)
+	_tfm_exec_movePlayer(playerName, xPosition, yPosition, positionOffset, xSpeed, ySpeed, speedOffset)
+	local self = room.player[playerName]
+	if self then
+		self.x = (positionOffset and self.x + xPosition or xPosition)
+		self.y = (positionOffset and self.y + yPosition or yPosition)
+		self.vx = (speedOffset and self.x + xSpeed or xSpeed)
+		self.vy = (speedOffset and self.y + ySpeed or ySpeed)
+	end
+end
+
+appendEvent = function(executionTime, callback, ...)
+	local exec = os.time() + executionTime
+	
+	actionsCount = actionsCount + 1
+	actionsHandle[#actionsHandle + 1] = {
+		exec, callback, {...}, actionsCount
+	}
+	
+	return actionsCount
+end
+
+removeEvent = function(id)
+	local pos
+	for i, obj in next, actionsHandle do
+		if id == obj[4] then
+			pos = i
+			break
+		end
+	end
+	
+	if pos then
+		return table.remove(actionsHandle, pos)
+	end
+end
