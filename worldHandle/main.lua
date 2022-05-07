@@ -1,7 +1,7 @@
 worldRefreshChunks = function()
 	local _chunkDeactivate, chunkList = chunkDeactivate, map.chunk
-	for i=1, 680 do
-		_chunkDeactivate(chunkList[i])
+	for i=1, #chunkList do
+		map.handle[i] = {i, _chunkDeactivate}
 	end
 
 	for _, player in next, room.player do
@@ -31,7 +31,7 @@ handleChunksRefreshing = function()
 		if handle[i] then
 			if counter < peak and calls < lcalls then
 				lapse = _os_time()
-				ok, result = _pcall(handle[i][2], chunkList[handle[i][1]], true)
+				ok, result = _pcall(handle[i][2], chunkList[handle[i][1]])
 				if ok then
 					if result then
 						if handle[i][2] ~= chunkUnload then
@@ -53,7 +53,7 @@ handleChunksRefreshing = function()
 			else
 				print(string.format("<R>Chunk timeout ~ ~ ~</R>\n<D><T>Calls:</T> %f/%d p\n<T>Runtime:</T> %d/%d ms", calls, lcalls, counter, peak))
 				map.timestamp = _os_time()
-				counter = peak
+				--counter = peak
 				break
 			end
 		end
@@ -63,7 +63,7 @@ handleChunksRefreshing = function()
 		map.timestamp = _os_time()
 	end
 	
-	--modulo.runtimeLapse = counter
+	modulo.runtimeLapse = counter
 	
 	return (_os_time() - dif), calls
 end
@@ -182,7 +182,7 @@ createNewWorld = function(heightMaps)
 	map.spawnPoint = getFixedSpawn()
 	xmlLoad = string.format(xmlLoad, map.spawnPoint.x, map.spawnPoint.y)
 	
-	for i=1, 1040 do
+	for i=1, 1020 do
 		if _math_random(15) == 1 then
 			_structureCreate(1, ((i-1)*32)+16, ((256-heightMaps[1][i])*32)+16)
 		end
@@ -200,20 +200,18 @@ end
 
 startPlayer = function(playerName, spawnPoint)
 	if not room.player[playerName] then
+		map.userHandle[playerName] = true
 		room.player[playerName] = playerNew(playerName, spawnPoint)
 		local _system_bindKeyboard = system.bindKeyboard
 		for k=0, 200 do
 			_system_bindKeyboard(playerName, k, false, true)
 			_system_bindKeyboard(playerName, k, true, true)
-			room.player[playerName].keys[k+1] = false
+			room.player[playerName].keys[k] = false
 		end
 		system.bindMouse(playerName, true)
 		
-		tfm.exec.setAieMode(true, 5.0, playerName)
+		tfm.exec.setAieMode(true, 2.5, playerName)
 		eventPlayerDied(playerName, true)
-		
-		ui.addTextArea(777, "", playerName, 5, 25, 200, 100, 0x000000, 0x000000, 1.0, true)
-		ui.addTextArea(778, "", playerName, 5.5, 26, 200, 100, 0x000000, 0x000000, 1.0, true)
 	
 		playerDisplayInventoryBar(room.player[playerName])
 		playerChangeSlot(room.player[playerName], "invbar", 1)
@@ -283,6 +281,8 @@ worldExplosion = function(x, y, radius, power, cause)
 			chunkRefreshSegList(map.chunk[chunk], blockList)
 		end
 	end
+	map.timestamp = os.time() 
 	
 	tfm.exec.explosion(x, y+200, 15*power, range*32, false)
+	
 end

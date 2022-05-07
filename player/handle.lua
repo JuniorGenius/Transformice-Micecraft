@@ -82,23 +82,27 @@ playerActualizeHoldingItem = function(self)
 	end
 end
 
-playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
-	local tfmp = tfm.get.room.playerList[self.name]
+playerUpdatePosition = function(self, x, y, vx, vy, tfmp)
 	if timer >= awaitTime then
 		self.x = x or tfmp.x
 		self.y = y or tfmp.y
-	end
-	if timer < awaitTime or tfmp.y < 0 then
+	elseif timer < awaitTime then
 		self.x = map.spawnPoint.x
 		self.y = map.spawnPoint.y
 		_movePlayer(self.name, self.x, self.y)
 	end
 	
 	self.tx = (self.x/32) - 510
-	self.ty = 256 - (self.y/32)
+	self.ty = 256 - ((self.y-200)/32)
 	
 	self.vx = vx or tfmp.vx
 	self.vy = vy or tfmp.vy
+end
+
+playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
+	local tfmp = tfm.get.room.playerList[self.name]
+	
+	playerUpdatePosition(self, x, y, vx, vy, tfmp)
 	
 	if facingRight ~= nil then
 		self.facingRight = facingRight
@@ -118,32 +122,58 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		self.currentChunk = realCurrentChunk
 		if map.chunk[realCurrentChunk].activated then
 			self.lastActiveChunk = realCurrentChunk
-			if self.static and not modulo.timeout then playerStatic(self, false) end
+			if self.static and not modulo.timeout then
+				playerStatic(self, false)
+			end
+			
+			if not map.chunk[realCurrentChunk].userHandle[self.name] then
+				map.handle[realCurrentChunk] = {
+					realCurrentChunk, chunkFlush
+				}
+			end
 		else
-			if not self.static then playerStatic(self, true) end
+			if not self.static then
+				playerStatic(self, true)
+			end
 		end
 		
-		if timer >= awaitTime then
-		
-		local updtstr = string.format(
-			"<font size='18' face='Consolas'><CH2>%s</CH2></font>\n<D><font size='13' face='Consolas'><b>Pos:</b> x %d, y %d\n<b>Last Chunk:</b> %d\n<b>Current Chunk:</b> %d (%s)\n<b>Global Grounds:</b> %d",
+		if timer >= awaitTime and self.showDebug then
+		local leftstr = string.format(
+			"<b>Micecraft</b>\nTicks: 549 ms\n\n<b>Chunks</b>\nLoaded: %d\nActivated: %d\n\nGlobal Grounds: %d/%d\n\n<b>Gravity Forces:</b>\nWind: %d\nGravity: %d\n\n<b>Player - %s</b>\nTFM XY: %d / %d\nMC XY: %d / %d\nfacing: (%s)\nCurrent Chunk: %d (%s)\nLast Chunk: %d",
+			map.chunksLoaded,
+			map.chunksActivated,
+			globalGrounds,
+			groundsLimit,
+			map.windForce,
+			map.gravityForce,
 			self.name,
+			self.x,	self.y,
 			self.tx, self.ty,
-			self.lastChunk,
-			self.currentChunk,
-			(self.currentChunk >= 1 and self.currentChunk <= 680) and (map.chunk[self.currentChunk].activated and "+" or "-") or "NaN",
-			globalGrounds
+			(self.facingRight and "&gt;" or "&lt;"),
+			self.currentChunk, (map.chunk[self.currentChunk] and (map.chunk[self.currentChunk].activated and "+" or "-") or "NaN"),
+			self.lastChunk
 		)
-		
-		ui.updateTextArea(778, "<font color='#000000'><b>" .. updtstr:gsub("</?CH2>", ""):gsub("<D>", ""), self.name)
-		ui.updateTextArea(777, updtstr, self.name)
-		
+		local rightstr = string.format(
+			"Clock Time:\n%d s\n\n<b>Update Status</b>\nLuaAPI: %s\nRevision: %s\n\nTfm: %s\nRevision: %s\n\nLastest: %s\n\nStress: %d/%d ms\n(%d ms)\n\nActive Events: %d",
+			timer/1000,
+			tostring(tfm.get.misc.apiVersion),
+			modulo.apiVersion,
+			tostring(tfm.get.misc.transformiceVersion),
+			modulo.tfmVersion,
+			modulo.lastest,
+			modulo.runtimeLapse, modulo.runtimeLimit,
+			modulo.runtimeMax,
+			#actionsHandle
+		)
+		local text = "<p align='%s'><font face='Consolas' color='#ffffff'>"
+		ui.updateTextArea(778, text:format("right") .. rightstr, self.name)
+		ui.updateTextArea(777, text:format("left") .. leftstr, self.name)
 		end
 	end
 end
 
 playerReachNearChunks = function(self, range, forced)
-	if timer%2000 == 0 or forced then
+	if (os.time() > self.timestamp and timer%2000 == 0) or forced then
 		local cl, dcl, clj, dclj
 		if self.currentChunk and self.lastChunk then
 			for i=-1, 1 do

@@ -6,8 +6,9 @@ local defTrunkDestroy = function(self, Player, norep)
 	local leavetype = self.type + 1
 	
 	if upward.type == leavetype then
-		local dx, dy, yy = self.dx + 16, self.dy - 184
-		local _getPosBlock, block = getPosBlock
+		local yy, block
+		local dx, dy = self.dx + 16, self.dy - 184
+		local _getPosBlock = getPosBlock
 		local h = 1
 		
 		for y=-4, -1 do
@@ -105,11 +106,17 @@ stackPresets = {
 		yOffset = 0,
 		
 		callback = function(self, playerObject, blockObject)
-			local _i = blockObject.handle[playerObject.name] or blockObject.handle
-			local item, itemList = stackFetchCraft(_i, 9)
+			local stackObject = playerObject.inventory[self.stack]
+			if stackObject then
+				local item, itemList = stackFetchCraft(stackObject, 9)
 
-			if item and itemList then
-				return itemCreate(_i.slot[#_i.slot], item[1], item[2], true), itemList
+				if item and itemList then
+					return itemCreate(
+						stackObject.slot[#stackObject.slot], 
+						item[1], item[2],
+						true
+					), itemList
+				end
 			end
 		end,
 		
@@ -409,7 +416,7 @@ objectMetadata = {
 		handle = {
 			stackNew, 10, "Crafting Table",
 			stackPresets["Crafting Table"],
-			0, "Crafting Table"
+			36
 		},
 		onInteract = function(self, playerObject)
 			playerObject.inventory.bridge = blockGetInventory(self)
@@ -619,7 +626,7 @@ objectMetadata = {
 	[256] = {
 		name = "Bedrock",
 		drop = 256,
-		durability = -1,
+		durability = math.huge,
 		glow = 0,
 		translucent = false,
 		sprite = "17dd4adaaf0.png",

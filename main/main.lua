@@ -67,7 +67,7 @@ local main = function()
 		end
 	end
 	
-	map.seed = os.time() or 2^31
+	map.seed = (os.time() or 42069777777)
 	math.randomseed(map.seed)
 	local heightMaps = {}
 	
@@ -77,7 +77,7 @@ local main = function()
 			i==1 and 30 or 20, -- Amplitude
 			i==1 and 24 or 12, -- Wave Length
 			i==1 and 64 or 60-((i-1)*20), -- Surface Start
-			1040, -- Width
+			1020, -- Width
 			i==1 and 128 or 140-((i-1)*20)
 		)
 		map.heightMaps[i] = heightMaps[i]

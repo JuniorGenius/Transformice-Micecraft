@@ -10,9 +10,9 @@ playerPlaceObject = function(self, x, y, ghost)
 			
 			if block.type == 0 then
 				local ldis = 80
-				local xdis = math.abs(self.x-(block.dx+16))
-				local ydis = math.abs(self.y-(block.dy+16))
-				if xdis < ldis and ydis < ldis then
+				
+				local dist = distance(self.x, self.y, block.dx+16, block.dy+16)
+				if dist < ldis then
 					local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
 					
 					local around, areAround	= false, 4
@@ -36,7 +36,7 @@ playerPlaceObject = function(self, x, y, ghost)
 								itemRefresh(item, self.name, 0, 0)
 							end
 						end
-						playerUpdateInventoryBar(self)
+						--playerUpdateInventoryBar(self)
 						--recalculateShadows(block, 9*(areAround/4))
 					end
 				end
@@ -51,10 +51,9 @@ playerDestroyBlock = function(self, x, y)
 		local block = _getPosBlock(x, y-200)
 		if block.type ~= 0 then
 			local ldis = 80
-			local xdis = math.abs(self.x-(block.dx+16))
-			local ydis = math.abs(self.y-(block.dy+16))
+			local dist = distance(self.x, self.y, block.dx+16, block.dy+16)
 			
-			if xdis < ldis and ydis < ldis then
+			if dist < ldis then
 				local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
 				
 				local notAround, around = 4, false

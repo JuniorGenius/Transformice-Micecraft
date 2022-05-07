@@ -29,8 +29,9 @@ stackDisplay = function(self, xOffset, yOffset, displaySprite)
 end
 
 stackHide = function(self)
+    if not self then return end
     local _itemHide = itemHide
-    
+
     if self.sprite[3] then
         _tfm_exec_removeImage(self.sprite[3])
         self.sprite[3] = nil

@@ -1,16 +1,17 @@
 local _os_time = os.time
+local tt
 onEvent("Loop", function(elapsed, remaining)
 	if modulo.loading then
-    if timer == 0 then
-      tfm.exec.removeImage(modulo.loadImg[2][3])
-      ui.addTextArea(999,
-      "", nil,
-      50, 200,
-      700, 0,
-      0x000000,
-      0x000000,
-      1.0, true
-    )
+		if timer == 0 then
+			tfm.exec.removeImage(modulo.loadImg[2][3])
+			ui.addTextArea(999,
+				"", nil,
+				50, 200,
+				700, 0,
+				0x000000,
+				0x000000,
+				1.0, true
+			)
 		elseif timer <= awaitTime then
 			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
 		else
@@ -20,67 +21,79 @@ onEvent("Loop", function(elapsed, remaining)
 end)
 
 onEvent("Loop", function(elapsed, remaining)
-	if timer --[[>=]]% 10000 == 0 and modulo.loading then
-		--error("Script loading failed.", 2)
-		print(timer)
+	if timer >= 15000 and modulo.loading then
+		error(translate("errors worldfail", room.language))
 	end
 	
-	do
-		for _, player in next, room.player do
-			if player.isAlive then
-				playerLoopUpdate(player)
-				
-				if modulo.loading then
-					if map.chunk[player.currentChunk].activated then
-						awaitTime = -1000
-					else
-						if timer >= awaitTime - 1000 then
-							awaitTime = awaitTime + 500
-						end
+	if timer%5000 == 0 and not modulo.timeout then
+		setWorldGravity(0, 10)
+	end 
+		
+	if globalGrounds > 712 then
+		if globalGrounds <= groundsLimit then
+			worldRefreshChunks()
+		else
+			error(translate("errors physics_destroyed", room.language,
+				{current=globalGrounds, limit=groundsLimit})
+			)
+		end
+	end
+	
+	timer = timer + 500
+end)
+
+onEvent("Loop", function(elapsed, remaining)
+	
+	for playerName, Player in next, room.player do
+		if Player.isAlive then
+			playerLoopUpdate(Player)
+			
+			if modulo.loading then
+				if map.chunk[Player.currentChunk].activated then
+					awaitTime = -1000
+				else
+					if timer >= awaitTime - 1000 then
+						awaitTime = awaitTime + 500
 					end
 				end
+			end
 				
-				if player.static and _os_time() > player.static then
-					playerStatic(player, false)
-				end
+			if Player.static and _os_time() > Player.static then
+				playerStatic(Player, false)
 			end
-			
-			playerCleanAlert(player)
-		end
-	
-		if _os_time() > map.timestamp + 4000 then
-			if modulo.runtimeLapse > 1 then
-				print(("<O><b>Runtime reset:</b></O> <D>%d ms</D>"):format(modulo.runtimeLapse))
-				modulo.timeout = false
+		else
+			if modulo.loading then
+				tfm.exec.respawnPlayer(playerName)
 			end
-			modulo.runtimeLapse = 0
 		end
 		
-		do
-			if modulo.runtimeLapse < modulo.runtimeLimit then
-				handleChunksRefreshing()
-			end
-			
-			if modulo.runtimeLapse >= modulo.runtimeLimit then
-				for _, player in next, room.player do
-					if not player.static then
-						playerStatic(player, true)
-						playerAlert(player, "<b>Module Timeout", nil, "CEP", 48, 3900)
-					end
-				end
-				modulo.timeout = true
+		playerCleanAlert(Player)
+	end
+end)
+
+onEvent("Loop", function(elapsed, remaining)
+	if _os_time() > map.timestamp + 4000 then
+		if modulo.runtimeLapse > 1 then
+			modulo.timeout = false
+		end
+		modulo.runtimeLapse = 0
+	end
+		
+	if modulo.runtimeLapse < modulo.runtimeLimit then
+		handleChunksRefreshing()
+	end
+		
+	if modulo.runtimeLapse >= modulo.runtimeLimit then
+		for _, Player in next, room.player do
+			if not Player.static then
+				playerStatic(Player, true)
+				playerAlert(Player, ("<b>%s</b>"):format(
+					translate("modulo timeout", Player.language)
+				), nil, "CEP", 48, 3900)
+				
 			end
 		end
-			--[[if tt >= 3 then
-			map.loadingTotalTime = map.loadingTotalTime + tt
-			map.totalLoads = map.totalLoads + 1
-			map.loadingAverageTime = _math_round(map.loadingTotalTime / map.totalLoads, 2)
-			if room.isTribe then
-				local color
-				if tt < 10 then color = "VP" elseif tt >= 10 and tt < 20 then color = "CEP" else color = "R" end
-				print(string.format("<V>[Event Loop]</V> Chunks updated in <%s>%d ms</%s> (avg. %f ms)", color, tt, color, map.loadingAverageTime))
-			end
-		end]]
+		modulo.timeout = true
 	end
 end)
 
@@ -88,11 +101,11 @@ onEvent("Loop", function(elapsed, remaining)
 	local HNDL = actionsHandle
 	local lenght = #HNDL
 	
-	local i, action = 1
-	local ok, result
+	local ok, result, action
 	
 	local _table_unpack = table.unpack
 	
+	local i = 1
 	while i <= lenght do
 		action = HNDL[i]
 		if _os_time() >= action[1] then
@@ -100,13 +113,12 @@ onEvent("Loop", function(elapsed, remaining)
 				local tt = _os_time()
 				ok, result = pcall(action[2], _table_unpack(action[3]))
 				if not ok then 
-					print(("[<D>Warning</D>] %s"):format(result))
+					warning("[eventAppend Handler] " .. result)
 				end
 				table.remove(HNDL, i)
 				lenght = lenght - 1
 				
 				modulo.runtimeLapse = modulo.runtimeLapse + (_os_time() - tt)
-				print(modulo.runtimeLapse)
 			else
 				break
 			end
@@ -114,15 +126,4 @@ onEvent("Loop", function(elapsed, remaining)
 			i = i + 1
 		end
 	end
-end)
-
-onEvent("Loop", function(elapsed, remaining)
-	if globalGrounds > 512 then
-		--print("<CEP> Warning! <R>" .. globalGrounds .. "</R> is above the safe physic objects count!")--worldRefreshChunks()
-		if globalGrounds >= 712 then -- 512
-			error(string.format("Physic system destroyed: <CEP>Limit of physic objects reached:</CEP> <R>%d/512", globalGrounds), 2)
-		end
-	end
-	
-	timer = timer + 500
 end)

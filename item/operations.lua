@@ -47,7 +47,7 @@ itemDisplaceAll = function(self, direction, source, target)
 			if not self.allowInsert then
 				local item = stackInsertItem(
 					target.inventory[self.stack],
-					self.itemId, self.amount, direction, false
+					self.itemId, self.amount, direction
 				)
 				if item then direction = item end
 			else
@@ -71,7 +71,7 @@ itemDisplaceAmount = function(self, direction, amount, source, target)
 			
 			stackInsertItem(
 				target.inventory.bag,
-				self.itemId, amount, direction, true
+				self.itemId, amount, direction
 			)
 			newSlot = self
 		else
@@ -131,7 +131,7 @@ itemMove = function(self, direction, amount, playerName)
 		end
 		
 		if moveCondition then
-			newSlot = (targetPlayer ~= sourcePlayer and self or direction)
+			newSlot = (target ~= source and self or direction)
 			if direction.allowInsert then
 				if amount == 0 then
 					newSlot = itemDisplaceAll(self, direction, source, target)

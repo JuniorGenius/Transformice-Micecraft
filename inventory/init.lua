@@ -3,7 +3,7 @@ stackNew = function(size, owner, dir, idoffset, name)
     
     local stack = {
         slot = {},
-        identifier = name,
+        identifier = name or "bridge",
         owner = owner,
         sprite = {
             dir.sprite,

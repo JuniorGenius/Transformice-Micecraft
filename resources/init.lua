@@ -1,4 +1,5 @@
 local string = string
+local math = math
 local table = table
 
 local system = system
@@ -6,39 +7,46 @@ local tfm = tfm
 local ui = ui
 
 local globalGrounds = 0
+local groundsLimit = 768
 
 local timer = 0
 local awaitTime = 3000
 
 local xmlLoad = '<C><P Ca="" H="8392" L="32640" /><Z><S></S><D><DS X="%d" Y="%d" /></D><O /></Z></C>'
 
-local dummyFunc = function() return end
+local dummyFunc = function(...) end
+local _ = nil
 
 local room = {
 	totalPlayers = 0,
 	isTribe = (string.sub(tfm.get.room.name, 1, 2) == "*\003"),
 	setMode = string.match(tfm.get.room.name, "micecraft%A+([_%a]+)"),
 	runtimeMax = 0,
+	language = tfm.get.room.language,
 	player = {}
 }
 
 local modulo = {
 	creator = "Indexinel#5948",
+	discreator = "Cap#1753",
 	name = "Micecraft",
 	loading = true,
-  loadImg = {
-    [1] = {"17f94a1608c.png", "17f94a1cb39.png"},
-    [2] = {}
-  },
+	loadImg = {
+		[1] = {"17f94a1608c.png", "17f94a1cb39.png"},
+		[2] = {}
+	},
 	sprite = "17f949fcbb4.png",
 	runtimeLapse = 0,
 	runtimeMax = 0,
 	runtimeLimit = 0,
-  timeout = false
+	timeout = false,
+	apiVersion = "0.28",
+	tfmVersion = "7.96",
+	lastest = "--@lastest"
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
-modulo.runtimeLimit = modulo.runtimeMax - 8
+modulo.runtimeLimit = modulo.runtimeMax - (room.isTribe and 8 or 15)
 
 local map = {
 	size = {
@@ -46,6 +54,9 @@ local map = {
 		width = 1020
 	},
 	chunk = {},
+	
+	chunksLoaded = 0,
+	chunksActivated = 0,
 	
 	type = 0,
 	
@@ -57,10 +68,14 @@ local map = {
 	loadingAverageTime = 0,
 	totalLoads = 0,
 	
+	windForce = 0,
+	gravityForce = 10,
+	
 	spawnPoint = {},
 	heightMaps = {},
 	handle = {},
 	timestamp = 0,
+	userHandle = {},
 	
 	structures = {}
 	--[[sun = {
@@ -69,9 +84,31 @@ local map = {
 		glow = 1024--2000
 	}]]
 }
- 
+
+local uiHandle = {}
+local uiResources = {}--[[
+element = {
+    type = ,
+    identifier = ,
+    container = ,
+    multiplecont = ,
+    xcent = ,
+    ycent = ,
+    width = ,
+    height = ,
+    text = ,
+    event = ,
+    image = ,
+    remove = ,
+}]]
 local event = {}
-local onEvent, errorHandler
+local onEvent, errorHandler, warning
+
+warning = function(issue)
+	local message = ("<R>[<b>Warning</b>]</R> <D>%s</D>"):format(issue or "(null)")
+	print(message)
+end
+
 onEvent = function(eventName, callback)
 	if not event[eventName] then
 		event[eventName] = {}
@@ -95,6 +132,7 @@ onEvent = function(eventName, callback)
 end
 
 errorHandler = function(err, eventName, instance)
+	warning(("[event%s (#%d)] %s"):format(eventName or "null", instance or 0, err or "null"))
 	tfm.exec.addImage("17f94a1608c.png", "~42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 	tfm.exec.addImage("17f949fcbb4.png", "~43", 70, 120, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 	ui.addTextArea(42069,
@@ -112,7 +150,6 @@ errorHandler = function(err, eventName, instance)
 
 	for name, evt in next, event do
 		if name == "Loop" then
-			event["PlayerDied"] = nil
 			for _, act in next, evt do
 				act = nil
 			end
@@ -132,6 +169,7 @@ errorHandler = function(err, eventName, instance)
 				end
 			end
 		else
+			event["PlayerDied"] = nil
 			evt = nil
 		end
 	end
@@ -148,12 +186,14 @@ errorHandler = function(err, eventName, instance)
 		_ui_removeTextArea(i)
 	end
 	
-	eventHandler = function()
-		return
-	end
+	errorHandler = function() end
 end
 
 local actionsCount = 0
 local actionsHandle = {}
+
+if not os.time or type(os.time()) ~= "number" then
+	error("os.time is messed up")
+end
 
 -- @prototypes

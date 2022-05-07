@@ -15,6 +15,10 @@ require("resources")
 
 require("utilities")
 
+require("uiHandle")
+
+require("translations")
+
 require("block")
 
 require("chunk")

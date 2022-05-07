@@ -6,22 +6,31 @@ chunkLoad = function(self)
 				_blockDisplay(self.block[i][j])
 			end
 		end
-		
+
+		self.userHandle = unreference(map.userHandle)
 		self.loaded = true
+		map.chunksLoaded = map.chunksLoaded + 1
 		return true
 	end
 end
 
 chunkUnload = function(self, onlyVisual)
-	local _blockHide = blockHide 
 	if self.loaded then
+		local _blockHide = blockHide 
 		for i=1, 32 do
 			for j=1, 12 do
 				_blockHide(self.block[i][j])
 			end
 		end
-		if self.activated and not OnlyVisual then chunkDeactivate(self) end
+		
+		if self.activated and not onlyVisual then
+			chunkDeactivate(self)
+		end
+		
+		self.userHandle = unreference(map.userHandle)
+		
 		self.loaded = false
+		map.chunksLoaded = map.chunksLoaded - 1
 		return true
 	end
 	

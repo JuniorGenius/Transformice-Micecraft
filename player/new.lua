@@ -1,6 +1,6 @@
 playerNew = function(playerName, spawnPoint)
 	local tfmp = tfm.get.room.playerList[playerName]
-	
+	map.userHandle[playerName] = true
 	local gChunk = getPosChunk(spawnPoint.x, spawnPoint.y)
 	
 	local self = {
@@ -8,7 +8,7 @@ playerNew = function(playerName, spawnPoint)
 		x = tfmp.x or 16320,
 		y = tfmp.y or 3000,
 		tx = 0,
-		tx = 0,
+		ty = 0,
 		id = tfmp.id,
 		spawnPoint = {
 			x = spawnPoint and spawnPoint.x or 16320,
@@ -24,6 +24,11 @@ playerNew = function(playerName, spawnPoint)
 		timestamp = os.time(),
 		static = 0,
 		keys = {},
+		language = tfmp.language,
+		
+		showDebug = false,
+		withinRange = nil,
+		
 		inventory = {
 			bag = stackNew(27, playerName,
 				stackPresets["playerBag"], 0, "bag"),

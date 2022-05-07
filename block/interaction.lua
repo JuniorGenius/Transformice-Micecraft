@@ -1,6 +1,7 @@
 
 blockDestroy = function(self, display, playerObject, dontUpdate)
-	if self.type > 0 and self.type < 256 then
+	if self.type > 0 and self.type <= 256 then
+		if self.type == 256 and self.damage ~= math.huge then return end
 		self.timestamp = os.time()
 		if display then blockHide(self) end
 		
@@ -40,7 +41,7 @@ blockDestroy = function(self, display, playerObject, dontUpdate)
 end
 
 blockCreate = function(self, type, ghost, display, playerObject)
-	if type > 0 and type < 256 then
+	if type > 0 and type <= 256 then
 		self.timestamp = os.time()
 		local meta = objectMetadata[type]
 		self.type = type
@@ -113,9 +114,8 @@ blockDamage = function(self, amount, playerObject)
 		if self.damage > self.durability then self.damage = self.durability end
 		self.damagePhase = math.ceil((self.damage*10)/self.durability)
 		self.sprite[1][4] = damageSprites[self.damagePhase]
-		
 		if self.damage >= meta.durability then
-			blockDestroy(self, true, playerName)
+			blockDestroy(self, true, playerObject)
 			return true
 		else
 			if map.chunk[self.chunk].loaded then
@@ -124,7 +124,7 @@ blockDamage = function(self, amount, playerObject)
 			end
 			
 			if self.damage > 0 then 
-				appendEvent(5000, blockRepair, self, 1, Player)
+				appendEvent(5000, blockRepair, self, 1, playerObject)
 			end
 			
 			self:onDamage(playerObject)
@@ -146,18 +146,14 @@ end
 
 blockGetInventory = function(self)
 	if self.handle then
-		local inv
-	
-		inv = self.handle
-		inv.id = self.gid
-		return inv
+		return self.handle
 	end
 end
 
 blockInteract = function(self, playerObject)
 	if self.interact then
 		local distance = distance(self.dx+16, self.dy+16, playerObject.x, playerObject.y)
-		if distance < 48 then
+		if distance < 56 then
 			self:onInteract(playerObject)
 		else
 			playerAlert(playerObject, "You're too far from the "..objectMetadata[self.type].name..".", 328, "N", 14)

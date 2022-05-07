@@ -110,7 +110,7 @@ dump = function(var, nest, except)
 		local st = var
 		local type = type(var)
 		if type == "string" then
-			st = '"' .. var .. '"'
+			st = '"' .. var:gsub("<", "&lt;"):gsub(">", "&gt;") .. '"'
 			color = 'T'
 		elseif type == "number" then
 			color = 'V'
@@ -145,13 +145,15 @@ getPosChunk = function(x, y, passObject)
 end
 
 getPosBlock = function(x, y)
-	if x < 0 then x = 0
-	elseif x > 32640 then x = 32640 end
-	if y < 0 then y = 0
-	elseif y > 8192 then y = 8192 end
+	if x < 0 then x = 1
+	elseif x > 32640 then x = 32639 end
+	if y < 0 then y = 1
+	elseif y > 8192 then y = 8191 end
 
 	local chunk = getPosChunk(x, y, true)
-	return chunk.block[1+(_math_floor(y/32)%32)][1+(_math_floor(x/32)%12)]
+	if chunk then
+		return chunk.block[1+(_math_floor(y/32)%32)][1+(_math_floor(x/32)%12)]
+	end
 end
 
 getTruePosMatrix = function(chunk, x, y)
@@ -242,6 +244,39 @@ local _movePlayer = function(playerName, xPosition, yPosition, positionOffset, x
 		self.vx = (speedOffset and self.x + xSpeed or xSpeed)
 		self.vy = (speedOffset and self.y + ySpeed or ySpeed)
 	end
+end
+
+local setWorldGravity = function(windForce, gravityForce)
+	tfm.exec.setWorldGravity(windForce, gravityForce)
+	map.windForce = windForce or 0
+	map.gravityForce = gravityForce or 0
+end
+
+unreference = function(val)
+	local retvl
+
+	if type(val) == "table" then
+		retvl = {}
+		for k, v in next, val do
+			retvl[k] = unreference(v)
+		end
+	else
+		retvl = val
+	end
+	
+	return retvl
+end
+
+inherit = function(tbl, ex)
+	local obj = unreference(tbl)
+	
+	local deep
+	
+	for k, v in next, ex do
+		obj[k] = unreference(v)
+	end
+	
+	return obj
 end
 
 appendEvent = function(executionTime, callback, ...)

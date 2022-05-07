@@ -20,7 +20,8 @@ chunkNew = function(id, loaded, activated, biome, heightMaps)
 		x = 32*xc,
 		y = 32*(256-(yc-1))+200,
 		ioff = ((id-1)*384),
-		timestamp = 0
+		timestamp = 0,
+		userHandle = {}
 	}
 	
 	for i=1, 32 do
@@ -170,7 +171,7 @@ chunkCalculateCollisions = function(self)
 				xPos = self.x + (32*(xstr-1)) + (_width/2),
 				yPos = self.y + (32*(ystr-1)) + (_height/2),
 				bodydef = {
-					type = 14,
+					type = 14,--14,
 					width = _width,
 					height = _height,
 					friction = 0.3,

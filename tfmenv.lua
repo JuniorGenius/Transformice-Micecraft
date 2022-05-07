@@ -1,4 +1,4 @@
-local emptyFunc = function() return end
+local emptyFunc = function(...) end
 
 tfm = {
     enum = {

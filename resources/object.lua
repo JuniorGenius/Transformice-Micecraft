@@ -34,9 +34,9 @@ local craftsData = {
 local stackPresets
 local objectMetadata
 
-local furnaceData = {
+--[[local furnaceData = {
 	{source, {returns, quantity}},
-}
+}]]
 
 local damageSprites = {"17dd4b6df60.png", "17dd4b72b5d.png", "17dd4b7775d.png", "17dd4b7c35f.png", "17dd4b80f5e.png", "17dd4b85b5f.png", "17dd4b8a75e.png", "17dd4b8f35f.png", "17dd4b93f5e.png", "17dd4b98b5d.png"}
 

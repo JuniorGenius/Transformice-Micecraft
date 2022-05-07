@@ -24,7 +24,6 @@ playerChangeSlot = function(self, stack, slot)
 		_stack = stack
 	end
 	
-	
 	local dx, dy
 	
 	if type(slot) == "number" then
@@ -40,13 +39,13 @@ playerChangeSlot = function(self, stack, slot)
 	if not slot then
 		slot = _stack.slot[1]
 	end
+	
 	self.inventory.selectedSlot = slot
-	--local select = playerGetInventorySlot(self, slot)
-	dx, dy = slot.dx, slot.dy + ((self.inventory.barActive or slot.stack ~= "invbar") and 0 or -34)-- itemReturnDisplayPositions(select, self.name)
+	dx, dy = slot.dx, slot.dy + ((self.inventory.barActive or slot.stack ~= "invbar") and 0 or -34)
 	
 	if self.inventory.slotSprite then tfm.exec.removeImage(self.inventory.slotSprite) end
 	if dx and dy then
-		local scale = slot.scale
+		local scale = slot.size / 32
 		self.inventory.slotSprite = tfm.exec.addImage(
 			"17e4653605e.png", "~10",
 			dx-3, dy-3,
@@ -69,19 +68,26 @@ end
 playerDisplayInventory = function(self, list)
 	local _inv = self.inventory
 	self.inventory.barActive = false
-	
 	self.inventory.displaying = true
 	
 	local width = 332
 	local height = 316
 	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
 	
+	if self.onWindow then
+		uiRemoveWindow(self.onWindow, self.name)
+	end
+	
 	stackHide(self.inventory.invbar)
 	
 	local stack, xo, yo, stdisp
 	for _, obj in next, list do
 		stack, xo, yo, stdisp = table.unpack(obj)
-		stackDisplay(self.inventory[stack], xo, yo, stdisp)
+		stack = self.inventory[stack]
+		if stack.owner ~= self.name then
+			stack.owner = self.name
+		end
+		stackDisplay(stack, xo, yo, stdisp)
 	end
 
 	playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot)
@@ -115,6 +121,7 @@ playerHideInventory = function(self)
 	stackHide(self.inventory.invbar)
 	stackHide(self.inventory.craft)
 	stackHide(self.inventory.armor)
+	stackHide(self.inventory.bridge)
 	
 	ui.removeTextArea(888, self.name)
 	
@@ -227,18 +234,6 @@ playerMoveItem = function(self, origin, select, display)
 	
 	return select, newSlot
 end
---[[
-playerHudInteract = function(self, select, blockObject)
-	local origin = self.inventory.selectedSlot
-	
-	local destiny = self.inventory[select.stack]
-	local source = self.inventory[origin.stack]
-	
-	local item, itemList = select:callback(self, blockObject)
-	if not (item and itemList) then
-		item, itemList = origin:callback(self, blockObject)
-	end
-end]]
 
 playerHudInteract = function(self, stackTarget, select, blockObject)
 	local origin = self.inventory.selectedSlot

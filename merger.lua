@@ -87,8 +87,8 @@ do
 	end
 	
 	build = build:gsub("-- @prototypes", prototypesBuild)
-	build = build .. ("\n\n-- " .. os.date("%d/%m/%Y %H:%M:%S") .. " --")
-	
+	local ltime = os.date("%d/%m/%Y %H:%M:%S")
+	build = build:gsub("--@lastest", ltime) .. ("\n\n-- " .. ltime .. " --")
 	local newBuild = io.open("./micecraft.lua", 'w')
 	newBuild:write(build)
 	newBuild:close()
@@ -108,6 +108,33 @@ do
 end
 
 
+if a then
+local eventFastLoopTimers = {}
+
+local tickrate = 60
+local pcheck = math.ceil(1000/tickrate)
 
 
+local eventFastLoop = function(_, ms)
+	tfm.exec.chatMessage("Every " .. pcheck .. " ms")
+end
 
+do
+	local limit = pcheck > 1000 and pcheck+10 or 1000
+	local _os_time = os.time
+	local init = _os_time()
+	local base = _os_time()
+	local tt
+	for i=1, 20000000 do
+		tt = _os_time()
+		if tt - init > limit then break end
+		if tt - base > pcheck then
+			table.insert(eventFastLoopTimers, system.newTimer(
+				eventFastLoop, 1000, true, pcheck
+			))
+			base = tt
+		end
+	end
+
+end
+end

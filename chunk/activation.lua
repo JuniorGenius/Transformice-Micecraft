@@ -69,9 +69,9 @@ chunkRefreshSegList = function(self, blockList)
 	return true
 end
 
-chunkActivate = function(self, onlyPhysics) 
+chunkActivate = function(self, onlyPhysics)
 	if not self.activated then
-		if os.time() > self.timestamp + 4000 then				
+		if os.time() > self.timestamp then				
 			local _chunkActivateSegment = chunkActivateSegment
 			local grounds = self.grounds[1]
 			for _, seg in next, self.segments do
@@ -80,9 +80,16 @@ chunkActivate = function(self, onlyPhysics)
 				end
 			end
 		
-			if not self.loaded and not onlyPhysics then chunkLoad(self) end
+			if not self.loaded and not onlyPhysics then
+				chunkLoad(self)
+			end
+			
+			self.userHandle = unreference(map.userHandle)
+			
 			self.activated = true
-			self.timestamp = os.time()
+			self.timestamp = os.time() + 4000
+			
+			map.chunksActivated = map.chunksActivated + 1
 			return true
 		end
 	end
@@ -92,7 +99,7 @@ end
 
 chunkDeactivate = function(self)
 	if self.activated then
-		if os.time() > self.timestamp + 4000 then
+		if os.time() > self.timestamp then
 			local _chunkDeactivateSegment = chunkDeactivateSegment
 			local grounds = self.grounds[1]
 			for _, seg in next, self.segments do
@@ -100,9 +107,11 @@ chunkDeactivate = function(self)
 					chunkDeactivateSegment(self, seg)
 				end
 			end
+			
+			self.userHandle = unreference(map.userHandle)
 
 			self.activated = false
-			
+			map.chunksActivated = map.chunksActivated - 1
 			return true
 		end
 	end
