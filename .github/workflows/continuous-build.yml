@@ -1,0 +1,35 @@
+name: "Continuous Build"
+
+on:
+  push:
+    branches: [ main, auto-builds ]
+  pull_request:
+    branches: [ main, auto-builds ]
+
+
+jobs:
+  continuous-build:
+
+    runs-on: "ubuntu-latest"
+
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: "Update Packages"
+      run: sudo apt update
+    - name: "Install Lua"
+      run: sudo apt install lua5.3
+    - name: "Merge"
+      run: lua merger.lua
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest-build"
+        prerelease: true
+        title: "Development Build"
+        files: |
+          micecraft.lua
