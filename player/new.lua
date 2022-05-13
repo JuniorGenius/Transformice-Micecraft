@@ -23,11 +23,22 @@ playerNew = function(playerName, spawnPoint)
 		lastActiveChunk = gChunk,
 		timestamp = os.time(),
 		static = 0,
-		keys = {},
 		language = tfmp.language,
 		
 		showDebug = false,
 		withinRange = nil,
+		
+		mouseBind = {
+			delay = 175,
+			timestamp = 0
+		},
+		
+		windowHandle = {
+			delay = 300,
+			timestamp = 0
+		},
+		
+		keys = {},
 		
 		inventory = {
 			bag = stackNew(27, playerName,
@@ -43,7 +54,9 @@ playerNew = function(playerName, spawnPoint)
 			slotSprite = nil,
 			owner = playerName,
 			barActive = false,
-			displaying = false
+			displaying = false,
+			timestamp = 0,
+			delay = 400
 		},
 		
 		alert = {

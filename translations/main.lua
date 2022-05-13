@@ -5,8 +5,12 @@ translate = function(resource, language, _format)
     
     local obj = unreference(Text[language])
     for key in resource:gmatch("%S+") do
-        obj = obj[key]
-        if not obj then
+        if type(obj) == "table" then
+            obj = obj[key]
+            if not obj then
+                break
+            end
+        else
             break
         end
     end
@@ -17,12 +21,14 @@ translate = function(resource, language, _format)
                 local keyv = "%$" .. key .. "%$"
                 obj = obj:gsub(keyv, tostring(value))
             end
+        else
+            return tostring(obj)
         end
     else
         if language ~= "xx" then
             translate(resource, "xx", _format)
         else
-            obj = resource
+            obj = resource:gsub(" ", "%.")
         end
     end
     

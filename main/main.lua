@@ -61,7 +61,7 @@ local main = function()
 		
 		
 		if not room.isTribe then
-			tfm.exec.setRoomMaxPlayers(7)
+			tfm.exec.setRoomMaxPlayers(modulo.maxPlayers)
 			tfm.exec.setPlayerSync(nil) 
 			tfm.exec.disableDebugCommand(true)
 		end

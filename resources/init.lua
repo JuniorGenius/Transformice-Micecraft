@@ -7,7 +7,7 @@ local tfm = tfm
 local ui = ui
 
 local globalGrounds = 0
-local groundsLimit = 768
+local groundsLimit = 1024
 
 local timer = 0
 local awaitTime = 3000
@@ -39,9 +39,10 @@ local modulo = {
 	runtimeLapse = 0,
 	runtimeMax = 0,
 	runtimeLimit = 0,
+	maxPlayers = 5,
 	timeout = false,
 	apiVersion = "0.28",
-	tfmVersion = "7.96",
+	tfmVersion = "7.99",
 	lastest = "--@lastest"
 }
 
@@ -135,12 +136,16 @@ errorHandler = function(err, eventName, instance)
 	warning(("[event%s (#%d)] %s"):format(eventName or "null", instance or 0, err or "null"))
 	tfm.exec.addImage("17f94a1608c.png", "~42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 	tfm.exec.addImage("17f949fcbb4.png", "~43", 70, 120, nil, 1.0, 1.0, 0, 1.0, 0, 0)
+	
+	local errorMessage = string.format(
+		"<p align='center'><font size='18'><R><B><font face='Wingdings'>M</font> Fatal Error</B></R></font>\n\n<CEP>%s</CEP>\n\n<CS>%s</CS>\n\n%s\n\n\n<CH>Send this to Indexinel#5948</CH></p>",
+		err, debug.traceback(),
+		(eventName and instance) and ("<D>Event: <V>event" .. eventName .. "</V> #" .. instance .. "</D>") or ""
+	)
+	
+	tfm.exec.chatMessage(errorMessage, nil)
 	ui.addTextArea(42069,
-		string.format(
-			"<p align='center'><font size='18'><R><B><font face='Wingdings'>M</font> Fatal Error</B></R></font>\n\n<CEP>%s</CEP>\n\n<CS>%s</CS>\n\n%s\n\n\n<CH>Send this to Indexinel#5948</CH>",
-			err, debug.traceback(),
-			(eventName and instance) and ("<D>Event: <V>event" .. eventName .. "</V> #" .. instance .. "</D>") or ""
-		),
+		errorMessage,
 		nil,
 		100, 50,
 		600, 300,

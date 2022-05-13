@@ -12,7 +12,7 @@ local tfm = tfm
 local ui = ui
 
 local globalGrounds = 0
-local groundsLimit = 768
+local groundsLimit = 1024
 
 local timer = 0
 local awaitTime = 3000
@@ -44,10 +44,11 @@ local modulo = {
 	runtimeLapse = 0,
 	runtimeMax = 0,
 	runtimeLimit = 0,
+	maxPlayers = 5,
 	timeout = false,
 	apiVersion = "0.28",
-	tfmVersion = "7.96",
-	lastest = "06/05/2022 19:33:57"
+	tfmVersion = "7.99",
+	lastest = "13/05/2022 07:22:10"
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -140,12 +141,16 @@ errorHandler = function(err, eventName, instance)
 	warning(("[event%s (#%d)] %s"):format(eventName or "null", instance or 0, err or "null"))
 	tfm.exec.addImage("17f94a1608c.png", "~42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 	tfm.exec.addImage("17f949fcbb4.png", "~43", 70, 120, nil, 1.0, 1.0, 0, 1.0, 0, 0)
+	
+	local errorMessage = string.format(
+		"<p align='center'><font size='18'><R><B><font face='Wingdings'>M</font> Fatal Error</B></R></font>\n\n<CEP>%s</CEP>\n\n<CS>%s</CS>\n\n%s\n\n\n<CH>Send this to Indexinel#5948</CH></p>",
+		err, debug.traceback(),
+		(eventName and instance) and ("<D>Event: <V>event" .. eventName .. "</V> #" .. instance .. "</D>") or ""
+	)
+	
+	tfm.exec.chatMessage(errorMessage, nil)
 	ui.addTextArea(42069,
-		string.format(
-			"<p align='center'><font size='18'><R><B><font face='Wingdings'>M</font> Fatal Error</B></R></font>\n\n<CEP>%s</CEP>\n\n<CS>%s</CS>\n\n%s\n\n\n<CH>Send this to Indexinel#5948</CH>",
-			err, debug.traceback(),
-			(eventName and instance) and ("<D>Event: <V>event" .. eventName .. "</V> #" .. instance .. "</D>") or ""
-		),
+		errorMessage,
 		nil,
 		100, 50,
 		600, 300,
@@ -855,7 +860,7 @@ uiCreateElement = function(id, order, target, element, text, xoff, yoff, alpha)
         
         textAreaHandle[lhandle.id] = id
     end
-        
+    
     return lhandle
 end
 
@@ -875,7 +880,7 @@ uiCreateWindow = function(id, _type, target, text, xoff, yoff, alpha)
     local resources = uiResources[_type] or uiResources[0]
 
     local texts = 0
-    
+    local height, width = 0, 0
     local handle = {}
     local lhandle 
     for order, element in next, resources do
@@ -885,9 +890,20 @@ uiCreateWindow = function(id, _type, target, text, xoff, yoff, alpha)
         lhandle.remove = element.remove
         lhandle.update = element.update
         
+        if (element.height or 0) > height then
+            height = element.height
+        end
+        
+        if (element.width or 0) > width then
+            width = element.width
+        end
+        
         handle[#handle + 1] = lhandle
         lhandle = nil
     end
+    
+    handle.height = height
+    handle.width = width
     
     return handle
 end
@@ -929,20 +945,20 @@ uiAddWindow = function(id, type, text, targetPlayer, xoffset, yoffset, alpha, re
         local success = uiCreateWindow(id, type, playerName, text, xoffset, yoffset, alpha)
         if success then 
             uiHandle[id][playerName] = success
-            local Player = room.player[playerName]
-            if Player then
-                Player.onWindow = id
-            end
+            eventWindowDisplay(id, playerName, success)
         end
     end
 end
 
 uiHideWindow = function(id, targetPlayer)
     local object = uiHandle[id][targetPlayer]
-   
+    
     if object then
-        for _, element in next, object do
-            element.remove(element.id, targetPlayer)
+        eventWindowHide(id, targetPlayer, object)
+        for key, element in next, object do
+            if type(element) == "table" then
+                element.remove(element.id, targetPlayer)
+            end
         end
     end
 end
@@ -955,9 +971,8 @@ uiRemoveWindow = function(id, targetPlayer)
         for _, playerName in next, playerList do
             uiHideWindow(id, playerName)
             
-            local Player = room.player[playerName]
-            if Player then
-                Player.onWindow = nil
+            if localeWindow[playerName] then
+                localeWindow[playerName] = nil
             end
         end
     end
@@ -1051,8 +1066,12 @@ translate = function(resource, language, _format)
     
     local obj = unreference(Text[language])
     for key in resource:gmatch("%S+") do
-        obj = obj[key]
-        if not obj then
+        if type(obj) == "table" then
+            obj = obj[key]
+            if not obj then
+                break
+            end
+        else
             break
         end
     end
@@ -1063,12 +1082,14 @@ translate = function(resource, language, _format)
                 local keyv = "%$" .. key .. "%$"
                 obj = obj:gsub(keyv, tostring(value))
             end
+        else
+            return tostring(obj)
         end
     else
         if language ~= "xx" then
             translate(resource, "xx", _format)
         else
-            obj = resource
+            obj = resource:gsub(" ", "%.")
         end
     end
     
@@ -1121,7 +1142,7 @@ Hope you enjoy!]]
     - If it's about the world, describe the place on where you were in.
     - Describe all the things you were doing moments before the incident
     
-<R>/!\</R> Please, communicate in english or spanish, or either I will not be able to understand you! <R>/!\</R>
+<b><ROSE>/!\</ROSE> Please, communicate in english or spanish, or either I will not be able to understand you! <ROSE>/!\</ROSE></b>
 
 Once you bring me these info, I, the developer of the module ($username$) will try to fix the error as soon as possible. To contact me, you can resort to one of the following ways:
     - Through <BL>Discord</BL>: $discord$.
@@ -1146,6 +1167,42 @@ You can also contact me if you have any question and if you want to suggest some
     errors = {
         physics_destroyed = "Physic system destroyed: <CEP>Limit of physic objects reached:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "World loading failure."
+    },
+    debug = {
+        left = [[<b>$module$</b>
+Ticks: 549 ms
+
+<b>Chunks</b>
+Loaded: %d
+Activated: %d
+
+Global Grounds: %d/%d
+
+<b>Gravity Forces:</b>
+Wind: %d
+Gravity: %d
+
+<b>Player - %s</b>
+Lang: %s
+TFM XY: %d / %d
+MC XY: %d / %d
+facing: (%s)
+Current Chunk: %d (%s)
+Last Chunk: %d]],
+        right = [[Clock Time:
+%d s
+
+<b>Update Status</b>
+LuaAPI: %s
+Revision: %s
+Tfm: %s
+Revision: %s
+Lastest: %s
+
+Stress: %d/%d ms
+(%d ms)
+
+Active Events: %d]]
     }
 }
 
@@ -1153,7 +1210,7 @@ You can also contact me if you have any question and if you want to suggest some
 
 Text["xx"] = Text["en"]
 
-Text["es"] = {
+Text["es"] = inherit(Text["xx"], {
     help = {
         title = "Ayuda",
         desc = [[Te doy la bienvenida a <D><b>$modulo$</b></D>! En este módulo podrás explorar variedad de lugares, construir tus propias estructuras y jugar con tus amigos en un enorme mundo bidimensional.
@@ -1199,7 +1256,7 @@ Text["es"] = {
     - Si es del mundo, describe el lugar en el que te encontrabas.
     - Describe todas las cosas que hicistes momentos antes de que ocurriese
     
-<b><R>/!\</R> ¡Por favor, comunícate en inglés o español, de lo contrario no te podré entender! <R>/!\</R></b>
+<b><ROSE>/!\</ROSE> ¡Por favor, comunícate en inglés o español, de lo contrario no te podré entender! <ROSE>/!\</ROSE></b>
 
 Una vez me proporciones estos datos, yo, el desarrollador del módulo ($username$) intentaré arreglar el error lo antes posible. Para contactarme, puedes acudir a una de las siguientes vías:
     - A través de <BL>Discord</BL>: $discord$.
@@ -1224,11 +1281,47 @@ Así también, puedes contactarme por cualquier duda o pregunta y sugerencia que
     errors = {
         physics_destroyed = "Sistema de colisiones destruído: <CEP>Límite de objetos físicos superado:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "Fallo en la carga del mundo."
+    },
+    debug = {
+        left = [[<b>$module$</b>
+Ticks: 549 ms
+
+<b>Chunks</b>
+Cargados: %d
+Activados: %d
+
+Suelos Globales: %d/%d
+
+<b>Fuerzas del mundo:</b>
+Viento: %d
+Gravedad: %d
+
+<b>Jugador(a) - %s</b>
+Idioma: %s
+TFM XY: %d / %d
+MC XY: %d / %d
+mirando: (%s)
+Chunk Actual: %d (%s)
+Chunk Previo: %d]],
+        right = [[Tiempo transcurrido:
+%d s
+
+<b>Estado de actualización:</b>
+LuaAPI: %s
+Revisión: %s
+Tfm: %s
+Revisión: %s
+
+Última: %s
+
+Estrés: %d/%d ms
+(%d ms)
+
+Eventos Activos: %d]]
     }
-}
+})
 
-
-Text["br"] = {
+Text["br"] = inherit(Text["xx"], {
     help = {
         title = "Ajuda",
         desc = [[Bem vindo(a) a <D><b>$modulo$</b></D>! Neste module você pode explorar uma grande variedades de lugares, construa suas construções e jogue com seus amigos em um grande mundo bimendisional.
@@ -1284,7 +1377,7 @@ Espero que goste !]]
         physics_destroyed = "Sistema de fisica destruido: <CEP>Limite de objetos fisicos alcançado:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "Falha no carregamento do mundo."
     }
-}
+})
 
 -- ==========	BLOCK	========== --
 
@@ -1978,11 +2071,22 @@ playerNew = function(playerName, spawnPoint)
 		lastActiveChunk = gChunk,
 		timestamp = os.time(),
 		static = 0,
-		keys = {},
 		language = tfmp.language,
 		
 		showDebug = false,
 		withinRange = nil,
+		
+		mouseBind = {
+			delay = 175,
+			timestamp = 0
+		},
+		
+		windowHandle = {
+			delay = 300,
+			timestamp = 0
+		},
+		
+		keys = {},
 		
 		inventory = {
 			bag = stackNew(27, playerName,
@@ -1998,7 +2102,9 @@ playerNew = function(playerName, spawnPoint)
 			slotSprite = nil,
 			owner = playerName,
 			barActive = false,
-			displaying = false
+			displaying = false,
+			timestamp = 0,
+			delay = 400
 		},
 		
 		alert = {
@@ -2062,7 +2168,7 @@ end
 	return nil
 end]]
 
-playerChangeSlot = function(self, stack, slot)
+playerChangeSlot = function(self, stack, slot, display)
 	local onBar = self.inventory.barActive
 	local _stack
 	
@@ -2091,40 +2197,45 @@ playerChangeSlot = function(self, stack, slot)
 	self.inventory.selectedSlot = slot
 	dx, dy = slot.dx, slot.dy + ((self.inventory.barActive or slot.stack ~= "invbar") and 0 or -34)
 	
-	if self.inventory.slotSprite then tfm.exec.removeImage(self.inventory.slotSprite) end
-	if dx and dy then
-		local scale = slot.size / 32
-		self.inventory.slotSprite = tfm.exec.addImage(
-			"17e4653605e.png", "~10",
-			dx-3, dy-3,
-			self.name,
-			scale, scale,
-			0.0, 1.0,
-			0.0, 0.0
-		)
+	if self.inventory.slotSprite then
+		tfm.exec.removeImage(self.inventory.slotSprite)
 	end
 	
-	if slot.itemId ~= 0 then	
-		playerAlert(self, objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
-	else
-		eventTextAreaCallback(1001, self.name, "clear")
+	if display then
+		if dx and dy then
+			local scale = slot.size / 32
+			self.inventory.slotSprite = tfm.exec.addImage(
+				"17e4653605e.png", "~10",
+				dx-3, dy-3,
+				self.name,
+				scale, scale,
+				0.0, 1.0,
+				0.0, 0.0
+			)
+		end
+		
+		if slot.itemId ~= 0 then	
+			playerAlert(self, objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
+		else
+			eventTextAreaCallback(1001, self.name, "clear")
+		end
 	end
-	
 	playerActualizeHoldingItem(self)
 end
 
 playerDisplayInventory = function(self, list)
 	local _inv = self.inventory
+	
 	self.inventory.barActive = false
 	self.inventory.displaying = true
-	
-	local width = 332
-	local height = 316
-	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
 	
 	if self.onWindow then
 		uiRemoveWindow(self.onWindow, self.name)
 	end
+	
+	local width = 332
+	local height = 316
+	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
 	
 	stackHide(self.inventory.invbar)
 	
@@ -2136,9 +2247,11 @@ playerDisplayInventory = function(self, list)
 			stack.owner = self.name
 		end
 		stackDisplay(stack, xo, yo, stdisp)
+		if stack.identifier == "bag" then
+			playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot, true)
+		end
 	end
 
-	playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot)
 end
 
 playerDisplayInventoryBar = function(self)
@@ -2150,7 +2263,7 @@ playerDisplayInventoryBar = function(self)
 	local _inv = self.inventory
 	local slot = _inv.selectedSlot
 	if type(slot) == "table" then
-		playerChangeSlot(self, "invbar", ((slot.id-1)%9) + 1)
+		playerChangeSlot(self, "invbar", ((slot.id-1)%9) + 1, true)
 	end
 end
 
@@ -2158,18 +2271,22 @@ playerUpdateInventoryBar = function(self)
 	local _inv = self.inventory
 	local yoff = _inv.barActive and 0 or -36
 	stackRefresh(_inv.invbar, 0, yoff, _inv.barActive)
-	playerChangeSlot(self, "invbar", ((_inv.selectedSlot.id-1)%9) + 1)
+	playerChangeSlot(self, "invbar", ((_inv.selectedSlot.id-1)%9) + 1, true)
 end
 
 playerHideInventory = function(self)
 	self.inventory.displaying = false
 	local _itemRemove = itemRemove
 	
-	stackHide(self.inventory.bag)
-	stackHide(self.inventory.invbar)
-	stackHide(self.inventory.craft)
-	stackHide(self.inventory.armor)
-	stackHide(self.inventory.bridge)
+	local Inventory = self.inventory
+	
+	stackHide(Inventory.bag)
+	stackHide(Inventory.invbar)
+	stackHide(Inventory.craft)
+	stackHide(Inventory.armor)
+	stackHide(Inventory.bridge)
+	
+	playerChangeSlot(self, "invbar", Inventory.selectedSlot, false)
 	
 	ui.removeTextArea(888, self.name)
 	
@@ -2294,13 +2411,16 @@ playerHudInteract = function(self, stackTarget, select, blockObject)
 	local _item, itemList = select:callback(self, blockObject)
 	
 	if not (_item and itemList) then
+		print("origin")
 		_item, itemList = origin:callback(self, blockObject)
 	end
 	
 	if _item and itemList then
+		printt({_item = _item, select = select, origin = origin})
 		if _item.id == origin.id then
 			if select.id ~= origin.id then
 				for _, element in next, itemList do
+					
 					playerInventoryExtract(
 							self,
 							element.itemId, 1,
@@ -2326,7 +2446,6 @@ end
 playerPlaceObject = function(self, x, y, ghost)
 	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 		local item = self.inventory.selectedSlot
-		
 		if not item then return end
 		
 		if item.itemId <= 256 and item.amount >= 1 then
@@ -2559,13 +2678,14 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		end
 		
 		self.currentChunk = realCurrentChunk
-		if map.chunk[realCurrentChunk].activated then
+		local Chunk = map.chunk[realCurrentChunk]
+		if Chunk and Chunk.activated then
 			self.lastActiveChunk = realCurrentChunk
 			if self.static and not modulo.timeout then
 				playerStatic(self, false)
 			end
 			
-			if not map.chunk[realCurrentChunk].userHandle[self.name] then
+			if not Chunk.userHandle[self.name] then
 				map.handle[realCurrentChunk] = {
 					realCurrentChunk, chunkFlush
 				}
@@ -2578,7 +2698,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		
 		if timer >= awaitTime and self.showDebug then
 		local leftstr = string.format(
-			"<b>Micecraft</b>\nTicks: 549 ms\n\n<b>Chunks</b>\nLoaded: %d\nActivated: %d\n\nGlobal Grounds: %d/%d\n\n<b>Gravity Forces:</b>\nWind: %d\nGravity: %d\n\n<b>Player - %s</b>\nTFM XY: %d / %d\nMC XY: %d / %d\nfacing: (%s)\nCurrent Chunk: %d (%s)\nLast Chunk: %d",
+			translate("debug left", self.language, {module=modulo.name}),
 			map.chunksLoaded,
 			map.chunksActivated,
 			globalGrounds,
@@ -2586,6 +2706,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 			map.windForce,
 			map.gravityForce,
 			self.name,
+			self.language,
 			self.x,	self.y,
 			self.tx, self.ty,
 			(self.facingRight and "&gt;" or "&lt;"),
@@ -2593,7 +2714,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 			self.lastChunk
 		)
 		local rightstr = string.format(
-			"Clock Time:\n%d s\n\n<b>Update Status</b>\nLuaAPI: %s\nRevision: %s\n\nTfm: %s\nRevision: %s\n\nLastest: %s\n\nStress: %d/%d ms\n(%d ms)\n\nActive Events: %d",
+			translate("debug right", self.language),
 			timer/1000,
 			tostring(tfm.get.misc.apiVersion),
 			modulo.apiVersion,
@@ -2613,7 +2734,7 @@ end
 
 playerReachNearChunks = function(self, range, forced)
 	if (os.time() > self.timestamp and timer%2000 == 0) or forced then
-		local cl, dcl, clj, dclj
+		local cl, dcl, clj, dclj, Chunk, crossCondition
 		if self.currentChunk and self.lastChunk then
 			for i=-1, 1 do
 				cl = self.lastChunk+(85*i)
@@ -2622,11 +2743,20 @@ playerReachNearChunks = function(self, range, forced)
 					clj = cl+j
 					dclj = dcl+j
 					
-					local crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+					Chunk = map.chunk[dclj]
 					
-					if forced then
+					crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+					
+					if (Chunk and not Chunk.userHandle[self.name]) or forced then
+						local func = chunkFlush
+						if not Chunk.activated then
+							if not crossCondition then
+								func = chunkReload
+							end
+						end
+						
 						if dclj >= 1 and dclj <= 680 then
-							map.handle[dclj] = {dclj, crossCondition and chunkFlush or chunkReload}
+							map.handle[dclj] = {dclj, func}
 						end
 					else
 						if clj >= 1 and clj <= 680 then
@@ -2887,7 +3017,7 @@ itemDisplay = function(self, playerName, xOffset, yOffset)
 			0, 0
 		)
 		
-		if self.stackable and self.amount > 1 then
+		if self.stackable and self.amount ~= 1 then
 			local text = "<p align='center'><font face='Consolas' size='"..(12.4*scale).."'>" .. self.amount
 			local xpos = dx-(9*scale)
 			local scl = 34*scale
@@ -3135,7 +3265,7 @@ stackExtractItem = function(self, itemId, amount, targetSlot)
 	if item then
 		if item.stackable then
 			local fx = item.amount - (amount or 1)
-			if fx <= 0 then
+			if fx < 1 then
 				return itemRemove(item, self.owner)
 			else
 				itemSubstract(item, amount)
@@ -3611,7 +3741,7 @@ onEvent("Loop", function(elapsed, remaining)
 		setWorldGravity(0, 10)
 	end 
 		
-	if globalGrounds > 712 then
+	if globalGrounds > groundsLimit - 36 then
 		if globalGrounds <= groundsLimit then
 			worldRefreshChunks()
 		else
@@ -3710,6 +3840,37 @@ onEvent("Loop", function(elapsed, remaining)
 	end
 end)
 
+onEvent("Mouse", function(playerName, x, y)
+	local Player = room.player[playerName]
+	if timer > awaitTime and Player then
+		if Player.isAlive and os.time() > Player.mouseBind.timestamp then
+			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
+				local block = getPosBlock(x, y-200)
+				local isKeyActive = Player.keys
+				if isKeyActive[18] then -- debug
+					if isKeyActive[17] then
+						printt(map.chunk[block.chunk].grounds[1][block.act])
+					else
+						printt(block)
+					end
+				elseif isKeyActive[17] then
+					playerBlockInteract(Player, getPosBlock(x, y-200))
+				elseif isKeyActive[16] then
+					playerPlaceObject(Player, x, y, isKeyActive[32])
+				else
+					if block.id ~= 0 then
+						playerDestroyBlock(Player, x, y)
+					else
+						Player.inventory.selectedSlot:onHit(x, y)
+					end
+				end
+			end
+            
+            Player.mouseBind.timestamp = os.time() + Player.mouseBind.delay
+		end
+	end
+end)
+
 onEvent("Keyboard", function(playerName, key, down, x, y)
 	local Player = room.player[playerName]
 	if timer > awaitTime and Player then
@@ -3717,11 +3878,6 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 
 		if down then
 			isKeyActive[key] = true
-			
-			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
-				local slot = key - (key <= 57 and 48 or 96)
-				playerChangeSlot(Player, "invbar", slot)
-			end
 			
 			if isKeyActive[72] then -- H
 				local typedef
@@ -3736,29 +3892,43 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 				end
 				
 				if typedef then
-					uiDisplayDefined(typedef, playerName)
+                    if os.time() > Player.windowHandle.timestamp then
+                        uiDisplayDefined(typedef, playerName)
+                    end
 				end
 			end
 			
+			-- Don't use Z / Q / S / D / W / A 
 			if key == 46 or key == 88 then -- delete/x
 				local item = Player.inventory.selectedSlot
 				if item then itemRemove(item, playerName) end
-			elseif key == 81 then -- Q
+			elseif key == 76 then -- L
 				local item = Player.inventory.selectedSlot
-				if item then itemSubstract(item, 1) end
-			elseif key == 69 then -- E
+				playerInventoryExtract(Player, item.itemId, 1, item.stack, item)
+				local offset = 0
 				if Player.inventory.displaying then
-					playerHideInventory(Player)
-					playerDisplayInventoryBar(Player)
-				else
-					playerDisplayInventory(
-						Player,
-						{{"bag", 0, 0, true}, 
-						{"invbar", 0, -36, false}, 
-						{"craft", 0, 0, true}, 
-						{"armor", 0, 0, true}}
-					)
+					if item.stack == "invbar" then
+						offset = -36
+					end
 				end
+				
+				itemRefresh(item, Player.name, 0, offset)
+			elseif key == 69 then -- E
+                if os.time() > Player.inventory.timestamp then
+                    if Player.inventory.displaying then
+                        playerHideInventory(Player)
+                        playerDisplayInventoryBar(Player)
+                    else
+                        playerDisplayInventory(
+                            Player,
+                            {{"bag", 0, 0, true}, 
+                            {"invbar", 0, -36, false}, 
+                            {"craft", 0, 0, true}, 
+                            {"armor", 0, 0, true}}
+                        )
+                    end
+                    Player.inventory.timestamp = os.time() + Player.inventory.delay
+                end
 			elseif key == 71 then -- G
 				if Player.trade.isActive then 
 					eventPopupAnswer(11, playerName, "canceled")
@@ -3778,6 +3948,11 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 				end
 			end
 			
+			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
+				local slot = key - (key <= 57 and 48 or 96)
+				playerChangeSlot(Player, "invbar", slot, (not Player.onWindow))
+			end
+			
 			if key == 16 or key == 17 then
 				local scale = 1.5
 				Player.withinRange = _tfm_exec_addImage(
@@ -3788,6 +3963,16 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 					0.0, 1.0,
 					0.5, 0.5
 				)
+			end
+			
+			if key == 27 then
+				if Player.onWindow then
+					uiRemoveWindow(Player.onWindow, playerName)
+				end
+				
+				if Player.inventory.displaying then
+					playerDisplayInventoryBar(Player)
+				end
 			end
 		else -- Release
 			isKeyActive[key] = false
@@ -3813,35 +3998,6 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 	end
 end)
 
-onEvent("Mouse", function(playerName, x, y)
-	local Player = room.player[playerName]
-	if timer > awaitTime and Player then
-		if Player.isAlive then
-			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-				local block = getPosBlock(x, y-200)
-				local isKeyActive = Player.keys
-				if isKeyActive[18] then -- debug
-					if isKeyActive[17] then
-						printt(map.chunk[block.chunk].grounds[1][block.act])
-					else
-						printt(block)
-					end
-				elseif isKeyActive[17] then
-					playerBlockInteract(Player, getPosBlock(x, y-200))
-				elseif isKeyActive[16] then
-					playerPlaceObject(Player, x, y, isKeyActive[32])
-				else
-					if block.id ~= 0 then
-						playerDestroyBlock(Player, x, y)
-					else
-						Player.inventory.selectedSlot:onHit(x, y)
-					end
-				end
-			end
-		end
-	end
-end)
-
 onEvent("PlayerDied", function(playerName, override)
 	local Player = room.player[playerName]
 	if Player then
@@ -3855,6 +4011,8 @@ onEvent("PlayerDied", function(playerName, override)
 	
 	), playerName, 0, 0, 800, 400, 0x010101, 0x010101, 0.4, true)
 		end
+	else
+		ui.addTextArea(42069, "\n\n\n\n\n\n\n\n\n\n\n<p align='center'><font face='Soopafresh' size='42'><R>You've been disabled from playing Micecraft.</R></font></p>", playerName, 0, 0, 800, 400, 0x010101, 0x010101, 1.0, true)
 	end
 end)
 
@@ -3877,8 +4035,8 @@ onEvent("NewPlayer", function(playerName)
 		translate("controls title", lang),
 		translate("help title", lang)
 	),
-	playerName, 700, 300, 100, 100, 0x000000, 0x000000, 1.0, true)
-	
+	playerName, 700, 330, 100, 70, 0x000000, 0x000000, 1.0, true)
+	generateBoundGrounds()
 	if not room.isTribe then
 		tfm.exec.lowerSyncDelay(playerName)
 	end
@@ -3901,9 +4059,6 @@ onEvent("ChatCommand", function(playerName, command)
 
 	if command == "lang" or command == "language" then
 		room.player[playerName].language = args[2] or "xx"
-		print(args[2])
-	elseif args[1] == "test" then
-		print("wew")
 	elseif args[1] == "seed" then
 		ui.addPopup(169, 0, string.format("<p align='center'>World's seed:\n%d", map.seed), playerName, 300, 180, 200, true)
 	elseif args[1] == "tp" then
@@ -3917,10 +4072,17 @@ onEvent("ChatCommand", function(playerName, command)
 				if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
 			elseif not pa or not pb then
 				local pl = room.player[ args[2] ]
+				local tgt = room.player[args[3]]
 				if pl then
 					if pl.isAlive then
-						pa = pl.x
-						pb = pl.y
+						if tgt then
+							playerName = pl.name
+							pa = tgt.x
+							pb = tgt.y
+						else
+							pa = pl.x
+							pb = pl.y
+						end
 						if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
 					end
 				end
@@ -3941,7 +4103,7 @@ onEvent("ChatCommand", function(playerName, command)
 			if args[1] == "chatannounce" then
 				tfm.exec.chatMessage(_output, nil)
 			else
-			ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
+				ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
 			end
 		end
 	elseif args[1] == "stackFill" then
@@ -3950,7 +4112,26 @@ onEvent("ChatCommand", function(playerName, command)
 			stackFill(player.inventory.invbar, tonumber(args[2]), tonumber(args[3]) or 64)
 			stackRefresh(player.inventory.invbar, 0, player.inventory.barActive and 0 or -36, player.inventory.barActive)
 		end
+	elseif args[1] == "disable" and playerName == modulo.creator then
+		if room.player[args[2]] then
+			room.player[args[2]]= nil
+			tfm.exec.killPlayer(args[2])
+		end
+	elseif args[1] == "enable" and playerName == modulo.creator then
+		if not room.player[args[2]] then
+			room.player[args[2]] = playerNew(args[2], map.spawnPoint)
+			ui.removeTextArea(42069, args[2])
+			tfm.exec.respawnPlayer(args[2])
+		end
 	end
+end)
+
+onEvent("SlotSelected", function(Player, newSlot)
+--[[    local oldSlot = Player.inventory.selectedSlot
+    
+    
+    local oldstack, newstack = oldSlot.stack, newSlot.stack
+    if Player.inventory[newstack].del then]]
 end)
 
 onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
@@ -3991,8 +4172,8 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 end)
 
 onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
-	if timer > awaitTime and room.player[playerName] then
-		local Player = room.player[playerName]
+	local Player = room.player[playerName]
+	if timer > awaitTime and Player then
 		local targetStack = Player.inventory[eventName]
 		if not targetStack then return end
 		
@@ -4007,8 +4188,12 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 			end
 		end
 		
-		if not newSlot then newSlot = Player.inventory.selectedSlot end
-		playerChangeSlot(room.player[playerName], newSlot.stack, newSlot)
+		if not newSlot then
+			newSlot = Player.inventory.selectedSlot
+		else
+			eventSlotSelected(Player, newSlot)
+		end
+		playerChangeSlot(Player, newSlot.stack, newSlot, true)
 	end
 end)
 
@@ -4028,9 +4213,35 @@ onEvent("WindowCallback", function(windowId, playerName, eventName)
 	uiDisplayDefined(eventName, playerName)
 end)
 
+onEvent("WindowDisplay", function(windowId, playerName, windowObject)
+	local Player = room.player[playerName]
+	
+	if Player then
+		Player.onWindow = windowId
+		
+		Player.windowHandle.timestamp = os.time() + Player.windowHandle.delay
+		
+		if windowObject.height < 325 then
+			playerDisplayInventoryBar(Player)
+		else
+			playerHideInventory(Player)
+		end
+	end
+	
+end)
 
-
-
+onEvent("WindowHide", function(windowId, playerName, windowObject)
+	local Player = room.player[playerName]
+		
+	if Player then
+		Player.onWindow = nil
+		
+		if not Player.inventory.displaying then
+			playerDisplayInventoryBar(Player)
+		end
+	end
+	
+end)
 
 onEvent("PopupAnswer", function(popupId, playerName, answer)
 	return nil
@@ -4167,7 +4378,7 @@ local main = function()
 		
 		
 		if not room.isTribe then
-			tfm.exec.setRoomMaxPlayers(7)
+			tfm.exec.setRoomMaxPlayers(modulo.maxPlayers)
 			tfm.exec.setPlayerSync(nil) 
 			tfm.exec.disableDebugCommand(true)
 		end
@@ -4837,4 +5048,4 @@ objectMetadata = {
 
 xpcall(main, errorHandler)
 
--- 06/05/2022 19:33:57 --
+-- 13/05/2022 07:22:10 --

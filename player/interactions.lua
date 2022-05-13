@@ -1,7 +1,6 @@
 playerPlaceObject = function(self, x, y, ghost)
 	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 		local item = self.inventory.selectedSlot
-		
 		if not item then return end
 		
 		if item.itemId <= 256 and item.amount >= 1 then

@@ -19,7 +19,7 @@ itemDisplay = function(self, playerName, xOffset, yOffset)
 			0, 0
 		)
 		
-		if self.stackable and self.amount > 1 then
+		if self.stackable and self.amount ~= 1 then
 			local text = "<p align='center'><font face='Consolas' size='"..(12.4*scale).."'>" .. self.amount
 			local xpos = dx-(9*scale)
 			local scl = 34*scale

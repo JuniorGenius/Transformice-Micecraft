@@ -13,137 +13,7 @@ end)
 
 require("Loop")
 
-onEvent("Keyboard", function(playerName, key, down, x, y)
-	local Player = room.player[playerName]
-	if timer > awaitTime and Player then
-		local isKeyActive = Player.keys
-
-		if down then
-			isKeyActive[key] = true
-			
-			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
-				local slot = key - (key <= 57 and 48 or 96)
-				playerChangeSlot(Player, "invbar", slot)
-			end
-			
-			if isKeyActive[72] then -- H
-				local typedef
-				if key == 72 then
-					typedef = "help"
-				elseif key == 75 then -- K
-					typedef = "controls"
-				elseif key == 82 then -- R
-					typedef = "reports"
-				elseif key == 67 then -- C
-					typdef = "credits"
-				end
-				
-				if typedef then
-					uiDisplayDefined(typedef, playerName)
-				end
-			end
-			
-			if key == 46 or key == 88 then -- delete/x
-				local item = Player.inventory.selectedSlot
-				if item then itemRemove(item, playerName) end
-			elseif key == 81 then -- Q
-				local item = Player.inventory.selectedSlot
-				if item then itemSubstract(item, 1) end
-			elseif key == 69 then -- E
-				if Player.inventory.displaying then
-					playerHideInventory(Player)
-					playerDisplayInventoryBar(Player)
-				else
-					playerDisplayInventory(
-						Player,
-						{{"bag", 0, 0, true}, 
-						{"invbar", 0, -36, false}, 
-						{"craft", 0, 0, true}, 
-						{"armor", 0, 0, true}}
-					)
-				end
-			elseif key == 71 then -- G
-				if Player.trade.isActive then 
-					eventPopupAnswer(11, playerName, "canceled")
-				else
-					ui.addPopup(10, 0, "<p align='center'>Tradings are disabled currently, sorry.</p>"--[[Type the name of whoever you want to trade with."]], playerName, 250, 180, 300, true)
-				end
-			elseif key == 86 then
-				local act = Player.showDebug
-				Player.showDebug = (not act)
-				
-				if Player.showDebug then
-					ui.addTextArea(777, "", playerName, 5, 25, 150, 0, 0x000000, 0x000000, 1.0, true)
-					ui.addTextArea(778, "", playerName, 645, 25, 150, 0, 0x000000, 0x000000, 1.0, true)
-				else
-					ui.removeTextArea(777, playerName)
-					ui.removeTextArea(778, playerName)
-				end
-			end
-			
-			if key == 16 or key == 17 then
-				local scale = 1.5
-				Player.withinRange = _tfm_exec_addImage(
-					"1809609266a.png", "$"..playerName,
-					0, 0,
-					playerName,
-					scale, scale,
-					0.0, 1.0,
-					0.5, 0.5
-				)
-			end
-		else -- Release
-			isKeyActive[key] = false
-			
-			if key == 16 or key == 17 then
-				if Player.withinRange then
-					_tfm_exec_removeImage(Player.withinRange)
-					Player.withinRange = nil
-				end
-			end
-		end
-		
-		if timer > awaitTime then
-			local facingRight
-			if key < 4 and key%2 == 0 then
-				facingRight = key == 2
-			end
-			
-			if room.player[playerName].isAlive then
-				playerActualizeInfo(Player, x, y, _, _, facingRight)
-			end
-		end
-	end
-end)
-
-onEvent("Mouse", function(playerName, x, y)
-	local Player = room.player[playerName]
-	if timer > awaitTime and Player then
-		if Player.isAlive then
-			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-				local block = getPosBlock(x, y-200)
-				local isKeyActive = Player.keys
-				if isKeyActive[18] then -- debug
-					if isKeyActive[17] then
-						printt(map.chunk[block.chunk].grounds[1][block.act])
-					else
-						printt(block)
-					end
-				elseif isKeyActive[17] then
-					playerBlockInteract(Player, getPosBlock(x, y-200))
-				elseif isKeyActive[16] then
-					playerPlaceObject(Player, x, y, isKeyActive[32])
-				else
-					if block.id ~= 0 then
-						playerDestroyBlock(Player, x, y)
-					else
-						Player.inventory.selectedSlot:onHit(x, y)
-					end
-				end
-			end
-		end
-	end
-end)
+require("Controls")
 
 onEvent("PlayerDied", function(playerName, override)
 	local Player = room.player[playerName]
@@ -158,6 +28,8 @@ onEvent("PlayerDied", function(playerName, override)
 	
 	), playerName, 0, 0, 800, 400, 0x010101, 0x010101, 0.4, true)
 		end
+	else
+		ui.addTextArea(42069, "\n\n\n\n\n\n\n\n\n\n\n<p align='center'><font face='Soopafresh' size='42'><R>You've been disabled from playing Micecraft.</R></font></p>", playerName, 0, 0, 800, 400, 0x010101, 0x010101, 1.0, true)
 	end
 end)
 
@@ -180,8 +52,8 @@ onEvent("NewPlayer", function(playerName)
 		translate("controls title", lang),
 		translate("help title", lang)
 	),
-	playerName, 700, 300, 100, 100, 0x000000, 0x000000, 1.0, true)
-	
+	playerName, 700, 330, 100, 70, 0x000000, 0x000000, 1.0, true)
+	generateBoundGrounds()
 	if not room.isTribe then
 		tfm.exec.lowerSyncDelay(playerName)
 	end
@@ -204,9 +76,6 @@ onEvent("ChatCommand", function(playerName, command)
 
 	if command == "lang" or command == "language" then
 		room.player[playerName].language = args[2] or "xx"
-		print(args[2])
-	elseif args[1] == "test" then
-		print("wew")
 	elseif args[1] == "seed" then
 		ui.addPopup(169, 0, string.format("<p align='center'>World's seed:\n%d", map.seed), playerName, 300, 180, 200, true)
 	elseif args[1] == "tp" then
@@ -220,10 +89,17 @@ onEvent("ChatCommand", function(playerName, command)
 				if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
 			elseif not pa or not pb then
 				local pl = room.player[ args[2] ]
+				local tgt = room.player[args[3]]
 				if pl then
 					if pl.isAlive then
-						pa = pl.x
-						pb = pl.y
+						if tgt then
+							playerName = pl.name
+							pa = tgt.x
+							pb = tgt.y
+						else
+							pa = pl.x
+							pb = pl.y
+						end
 						if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
 					end
 				end
@@ -244,7 +120,7 @@ onEvent("ChatCommand", function(playerName, command)
 			if args[1] == "chatannounce" then
 				tfm.exec.chatMessage(_output, nil)
 			else
-			ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
+				ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
 			end
 		end
 	elseif args[1] == "stackFill" then
@@ -253,8 +129,21 @@ onEvent("ChatCommand", function(playerName, command)
 			stackFill(player.inventory.invbar, tonumber(args[2]), tonumber(args[3]) or 64)
 			stackRefresh(player.inventory.invbar, 0, player.inventory.barActive and 0 or -36, player.inventory.barActive)
 		end
+	elseif args[1] == "disable" and playerName == modulo.creator then
+		if room.player[args[2]] then
+			room.player[args[2]]= nil
+			tfm.exec.killPlayer(args[2])
+		end
+	elseif args[1] == "enable" and playerName == modulo.creator then
+		if not room.player[args[2]] then
+			room.player[args[2]] = playerNew(args[2], map.spawnPoint)
+			ui.removeTextArea(42069, args[2])
+			tfm.exec.respawnPlayer(args[2])
+		end
 	end
 end)
+
+require("Inventory")
 
 require("TextAreaCallback")
 

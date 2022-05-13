@@ -36,8 +36,8 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 end)
 
 onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
-	if timer > awaitTime and room.player[playerName] then
-		local Player = room.player[playerName]
+	local Player = room.player[playerName]
+	if timer > awaitTime and Player then
 		local targetStack = Player.inventory[eventName]
 		if not targetStack then return end
 		
@@ -52,7 +52,11 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 			end
 		end
 		
-		if not newSlot then newSlot = Player.inventory.selectedSlot end
-		playerChangeSlot(room.player[playerName], newSlot.stack, newSlot)
+		if not newSlot then
+			newSlot = Player.inventory.selectedSlot
+		else
+			eventSlotSelected(Player, newSlot)
+		end
+		playerChangeSlot(Player, newSlot.stack, newSlot, true)
 	end
 end)

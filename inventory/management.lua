@@ -84,7 +84,7 @@ stackExtractItem = function(self, itemId, amount, targetSlot)
 	if item then
 		if item.stackable then
 			local fx = item.amount - (amount or 1)
-			if fx <= 0 then
+			if fx < 1 then
 				return itemRemove(item, self.owner)
 			else
 				itemSubstract(item, amount)

@@ -1,4 +1,4 @@
-Text["es"] = {
+Text["es"] = inherit(Text["xx"], {
     help = {
         title = "Ayuda",
         desc = [[Te doy la bienvenida a <D><b>$modulo$</b></D>! En este módulo podrás explorar variedad de lugares, construir tus propias estructuras y jugar con tus amigos en un enorme mundo bidimensional.
@@ -69,5 +69,42 @@ Así también, puedes contactarme por cualquier duda o pregunta y sugerencia que
     errors = {
         physics_destroyed = "Sistema de colisiones destruído: <CEP>Límite de objetos físicos superado:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "Fallo en la carga del mundo."
+    },
+    debug = {
+        left = [[<b>$module$</b>
+Ticks: 549 ms
+
+<b>Chunks</b>
+Cargados: %d
+Activados: %d
+
+Suelos Globales: %d/%d
+
+<b>Fuerzas del mundo:</b>
+Viento: %d
+Gravedad: %d
+
+<b>Jugador(a) - %s</b>
+Idioma: %s
+TFM XY: %d / %d
+MC XY: %d / %d
+mirando: (%s)
+Chunk Actual: %d (%s)
+Chunk Previo: %d]],
+        right = [[Tiempo transcurrido:
+%d s
+
+<b>Estado de actualización:</b>
+LuaAPI: %s
+Revisión: %s
+Tfm: %s
+Revisión: %s
+
+Última: %s
+
+Estrés: %d/%d ms
+(%d ms)
+
+Eventos Activos: %d]]
     }
-}
+})

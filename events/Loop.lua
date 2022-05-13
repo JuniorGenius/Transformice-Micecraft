@@ -29,7 +29,7 @@ onEvent("Loop", function(elapsed, remaining)
 		setWorldGravity(0, 10)
 	end 
 		
-	if globalGrounds > 712 then
+	if globalGrounds > groundsLimit - 36 then
 		if globalGrounds <= groundsLimit then
 			worldRefreshChunks()
 		else

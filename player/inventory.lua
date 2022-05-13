@@ -14,7 +14,7 @@
 	return nil
 end]]
 
-playerChangeSlot = function(self, stack, slot)
+playerChangeSlot = function(self, stack, slot, display)
 	local onBar = self.inventory.barActive
 	local _stack
 	
@@ -43,40 +43,45 @@ playerChangeSlot = function(self, stack, slot)
 	self.inventory.selectedSlot = slot
 	dx, dy = slot.dx, slot.dy + ((self.inventory.barActive or slot.stack ~= "invbar") and 0 or -34)
 	
-	if self.inventory.slotSprite then tfm.exec.removeImage(self.inventory.slotSprite) end
-	if dx and dy then
-		local scale = slot.size / 32
-		self.inventory.slotSprite = tfm.exec.addImage(
-			"17e4653605e.png", "~10",
-			dx-3, dy-3,
-			self.name,
-			scale, scale,
-			0.0, 1.0,
-			0.0, 0.0
-		)
+	if self.inventory.slotSprite then
+		tfm.exec.removeImage(self.inventory.slotSprite)
 	end
 	
-	if slot.itemId ~= 0 then	
-		playerAlert(self, objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
-	else
-		eventTextAreaCallback(1001, self.name, "clear")
+	if display then
+		if dx and dy then
+			local scale = slot.size / 32
+			self.inventory.slotSprite = tfm.exec.addImage(
+				"17e4653605e.png", "~10",
+				dx-3, dy-3,
+				self.name,
+				scale, scale,
+				0.0, 1.0,
+				0.0, 0.0
+			)
+		end
+		
+		if slot.itemId ~= 0 then	
+			playerAlert(self, objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
+		else
+			eventTextAreaCallback(1001, self.name, "clear")
+		end
 	end
-	
 	playerActualizeHoldingItem(self)
 end
 
 playerDisplayInventory = function(self, list)
 	local _inv = self.inventory
+	
 	self.inventory.barActive = false
 	self.inventory.displaying = true
-	
-	local width = 332
-	local height = 316
-	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
 	
 	if self.onWindow then
 		uiRemoveWindow(self.onWindow, self.name)
 	end
+	
+	local width = 332
+	local height = 316
+	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
 	
 	stackHide(self.inventory.invbar)
 	
@@ -88,9 +93,11 @@ playerDisplayInventory = function(self, list)
 			stack.owner = self.name
 		end
 		stackDisplay(stack, xo, yo, stdisp)
+		if stack.identifier == "bag" then
+			playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot, true)
+		end
 	end
 
-	playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot)
 end
 
 playerDisplayInventoryBar = function(self)
@@ -102,7 +109,7 @@ playerDisplayInventoryBar = function(self)
 	local _inv = self.inventory
 	local slot = _inv.selectedSlot
 	if type(slot) == "table" then
-		playerChangeSlot(self, "invbar", ((slot.id-1)%9) + 1)
+		playerChangeSlot(self, "invbar", ((slot.id-1)%9) + 1, true)
 	end
 end
 
@@ -110,18 +117,22 @@ playerUpdateInventoryBar = function(self)
 	local _inv = self.inventory
 	local yoff = _inv.barActive and 0 or -36
 	stackRefresh(_inv.invbar, 0, yoff, _inv.barActive)
-	playerChangeSlot(self, "invbar", ((_inv.selectedSlot.id-1)%9) + 1)
+	playerChangeSlot(self, "invbar", ((_inv.selectedSlot.id-1)%9) + 1, true)
 end
 
 playerHideInventory = function(self)
 	self.inventory.displaying = false
 	local _itemRemove = itemRemove
 	
-	stackHide(self.inventory.bag)
-	stackHide(self.inventory.invbar)
-	stackHide(self.inventory.craft)
-	stackHide(self.inventory.armor)
-	stackHide(self.inventory.bridge)
+	local Inventory = self.inventory
+	
+	stackHide(Inventory.bag)
+	stackHide(Inventory.invbar)
+	stackHide(Inventory.craft)
+	stackHide(Inventory.armor)
+	stackHide(Inventory.bridge)
+	
+	playerChangeSlot(self, "invbar", Inventory.selectedSlot, false)
 	
 	ui.removeTextArea(888, self.name)
 	
@@ -246,13 +257,16 @@ playerHudInteract = function(self, stackTarget, select, blockObject)
 	local _item, itemList = select:callback(self, blockObject)
 	
 	if not (_item and itemList) then
+		print("origin")
 		_item, itemList = origin:callback(self, blockObject)
 	end
 	
 	if _item and itemList then
+		printt({_item = _item, select = select, origin = origin})
 		if _item.id == origin.id then
 			if select.id ~= origin.id then
 				for _, element in next, itemList do
+					
 					playerInventoryExtract(
 							self,
 							element.itemId, 1,

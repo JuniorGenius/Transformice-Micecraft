@@ -69,6 +69,42 @@ You can also contact me if you have any question and if you want to suggest some
     errors = {
         physics_destroyed = "Physic system destroyed: <CEP>Limit of physic objects reached:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "World loading failure."
+    },
+    debug = {
+        left = [[<b>$module$</b>
+Ticks: 549 ms
+
+<b>Chunks</b>
+Loaded: %d
+Activated: %d
+
+Global Grounds: %d/%d
+
+<b>Gravity Forces:</b>
+Wind: %d
+Gravity: %d
+
+<b>Player - %s</b>
+Lang: %s
+TFM XY: %d / %d
+MC XY: %d / %d
+facing: (%s)
+Current Chunk: %d (%s)
+Last Chunk: %d]],
+        right = [[Clock Time:
+%d s
+
+<b>Update Status</b>
+LuaAPI: %s
+Revision: %s
+Tfm: %s
+Revision: %s
+Lastest: %s
+
+Stress: %d/%d ms
+(%d ms)
+
+Active Events: %d]]
     }
 }
 

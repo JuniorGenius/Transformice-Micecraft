@@ -1,4 +1,4 @@
-Text["br"] = {
+Text["br"] = inherit(Text["xx"], {
     help = {
         title = "Ajuda",
         desc = [[Bem vindo(a) a <D><b>$modulo$</b></D>! Neste module você pode explorar uma grande variedades de lugares, construa suas construções e jogue com seus amigos em um grande mundo bimendisional.
@@ -54,4 +54,4 @@ Espero que goste !]]
         physics_destroyed = "Sistema de fisica destruido: <CEP>Limite de objetos fisicos alcançado:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "Falha no carregamento do mundo."
     }
-}
+})

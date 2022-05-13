@@ -120,13 +120,14 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		end
 		
 		self.currentChunk = realCurrentChunk
-		if map.chunk[realCurrentChunk].activated then
+		local Chunk = map.chunk[realCurrentChunk]
+		if Chunk and Chunk.activated then
 			self.lastActiveChunk = realCurrentChunk
 			if self.static and not modulo.timeout then
 				playerStatic(self, false)
 			end
 			
-			if not map.chunk[realCurrentChunk].userHandle[self.name] then
+			if not Chunk.userHandle[self.name] then
 				map.handle[realCurrentChunk] = {
 					realCurrentChunk, chunkFlush
 				}
@@ -139,7 +140,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		
 		if timer >= awaitTime and self.showDebug then
 		local leftstr = string.format(
-			"<b>Micecraft</b>\nTicks: 549 ms\n\n<b>Chunks</b>\nLoaded: %d\nActivated: %d\n\nGlobal Grounds: %d/%d\n\n<b>Gravity Forces:</b>\nWind: %d\nGravity: %d\n\n<b>Player - %s</b>\nTFM XY: %d / %d\nMC XY: %d / %d\nfacing: (%s)\nCurrent Chunk: %d (%s)\nLast Chunk: %d",
+			translate("debug left", self.language, {module=modulo.name}),
 			map.chunksLoaded,
 			map.chunksActivated,
 			globalGrounds,
@@ -147,6 +148,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 			map.windForce,
 			map.gravityForce,
 			self.name,
+			self.language,
 			self.x,	self.y,
 			self.tx, self.ty,
 			(self.facingRight and "&gt;" or "&lt;"),
@@ -154,7 +156,7 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 			self.lastChunk
 		)
 		local rightstr = string.format(
-			"Clock Time:\n%d s\n\n<b>Update Status</b>\nLuaAPI: %s\nRevision: %s\n\nTfm: %s\nRevision: %s\n\nLastest: %s\n\nStress: %d/%d ms\n(%d ms)\n\nActive Events: %d",
+			translate("debug right", self.language),
 			timer/1000,
 			tostring(tfm.get.misc.apiVersion),
 			modulo.apiVersion,
@@ -174,7 +176,7 @@ end
 
 playerReachNearChunks = function(self, range, forced)
 	if (os.time() > self.timestamp and timer%2000 == 0) or forced then
-		local cl, dcl, clj, dclj
+		local cl, dcl, clj, dclj, Chunk, crossCondition
 		if self.currentChunk and self.lastChunk then
 			for i=-1, 1 do
 				cl = self.lastChunk+(85*i)
@@ -183,11 +185,20 @@ playerReachNearChunks = function(self, range, forced)
 					clj = cl+j
 					dclj = dcl+j
 					
-					local crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+					Chunk = map.chunk[dclj]
 					
-					if forced then
+					crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+					
+					if (Chunk and not Chunk.userHandle[self.name]) or forced then
+						local func = chunkFlush
+						if not Chunk.activated then
+							if not crossCondition then
+								func = chunkReload
+							end
+						end
+						
 						if dclj >= 1 and dclj <= 680 then
-							map.handle[dclj] = {dclj, crossCondition and chunkFlush or chunkReload}
+							map.handle[dclj] = {dclj, func}
 						end
 					else
 						if clj >= 1 and clj <= 680 then

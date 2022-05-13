@@ -58,7 +58,7 @@ uiCreateElement = function(id, order, target, element, text, xoff, yoff, alpha)
         
         textAreaHandle[lhandle.id] = id
     end
-        
+    
     return lhandle
 end
 
@@ -78,7 +78,7 @@ uiCreateWindow = function(id, _type, target, text, xoff, yoff, alpha)
     local resources = uiResources[_type] or uiResources[0]
 
     local texts = 0
-    
+    local height, width = 0, 0
     local handle = {}
     local lhandle 
     for order, element in next, resources do
@@ -88,9 +88,20 @@ uiCreateWindow = function(id, _type, target, text, xoff, yoff, alpha)
         lhandle.remove = element.remove
         lhandle.update = element.update
         
+        if (element.height or 0) > height then
+            height = element.height
+        end
+        
+        if (element.width or 0) > width then
+            width = element.width
+        end
+        
         handle[#handle + 1] = lhandle
         lhandle = nil
     end
+    
+    handle.height = height
+    handle.width = width
     
     return handle
 end
@@ -132,20 +143,20 @@ uiAddWindow = function(id, type, text, targetPlayer, xoffset, yoffset, alpha, re
         local success = uiCreateWindow(id, type, playerName, text, xoffset, yoffset, alpha)
         if success then 
             uiHandle[id][playerName] = success
-            local Player = room.player[playerName]
-            if Player then
-                Player.onWindow = id
-            end
+            eventWindowDisplay(id, playerName, success)
         end
     end
 end
 
 uiHideWindow = function(id, targetPlayer)
     local object = uiHandle[id][targetPlayer]
-   
+    
     if object then
-        for _, element in next, object do
-            element.remove(element.id, targetPlayer)
+        eventWindowHide(id, targetPlayer, object)
+        for key, element in next, object do
+            if type(element) == "table" then
+                element.remove(element.id, targetPlayer)
+            end
         end
     end
 end
@@ -158,9 +169,8 @@ uiRemoveWindow = function(id, targetPlayer)
         for _, playerName in next, playerList do
             uiHideWindow(id, playerName)
             
-            local Player = room.player[playerName]
-            if Player then
-                Player.onWindow = nil
+            if localeWindow[playerName] then
+                localeWindow[playerName] = nil
             end
         end
     end
