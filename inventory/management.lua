@@ -18,32 +18,32 @@ stackCreateItem = function(self, itemId, amount, targetSlot)
 	local slot = targetSlot or stackFindItem(self, 0)
 
 	if slot then
-		return itemCreate(slot, itemId, amount, (amount > 0))
+		return slotFill(slot, itemId, amount, (amount > 0))
 	end
 	
 	return nil
 end
 
 stackInsertItem = function(self, itemId, amount, targetSlot)
-	local item = stackFindItem(self, itemId, true)
+	local slot = stackFindItem(self, itemId, true)
 	
 	if targetSlot ~= nil then
 		if type(targetSlot) == "boolean" then
 			if targetSlot then
-				item = room.player[self.owner].inventory.selectedSlot
+				slot = room.player[self.owner].inventory.selectedSlot
 			end
 		elseif type(targetSlot) == "number" then
 			if targetSlot <= #self.slot then
-				item = self.slot[targetSlot]
+				slot = self.slot[targetSlot]
 			end
 		elseif type(targetSlot) == "table" then
-			item = targetSlot
+			slot = targetSlot
 		end
 		
-		if item then
-			if item.itemId ~= 0 then
-				if (item.stackable and item.amount + amount > 64) or item.itemId ~= itemId then
-					item = stackFindItem(self, itemId, true)
+		if slot then
+			if slot.itemId ~= 0 then
+				if (slot.stackable and slot.amount + amount > 64) or slot.itemId ~= itemId then
+					slot = stackFindItem(self, itemId, true)
 				end
 			end
 		else
@@ -51,121 +51,209 @@ stackInsertItem = function(self, itemId, amount, targetSlot)
 		end
 	end
 	
-	if item then
-		if item.stackable and item.amount + amount <= 64 and item.itemId == itemId then
-			itemAdd(item, amount)
-			return item
+	if slot then
+		if slot.stackable and slot.amount + amount <= 64 and slot.itemId == itemId then
+			slotAdd(slot, amount)
+			return slot
 		else
-			return stackCreateItem(self, itemId, amount, item)
+			return stackCreateItem(self, itemId, amount, slot)
 		end
 	else
-		return stackCreateItem(self, itemId, amount, item)
+		return stackCreateItem(self, itemId, amount, slot)
 	end
 
-	return item
+	return slot
 end
 
 stackExtractItem = function(self, itemId, amount, targetSlot)
-	local item = stackFindItem(self, itemId)
+	local slot = stackFindItem(self, itemId)
 	local own = room.player[self.owner]
 	
 	if targetSlot ~= nil then
 		if type(targetSlot) == "boolean" then
 			if targetSlot then
-				item = own.inventory.selectedSlot
+				slot = own.inventory.selectedSlot
 			end
 		elseif type(targetSlot) == "number" then
-			item = own.inventory[own.inventory.selectedSlot.stack].slot[targetSlot]
+			slot = own.inventory[own.inventory.selectedSlot.stack].slot[targetSlot]
 		elseif type(targetSlot) == "table" then
-			item = targetSlot 
+			slot = targetSlot 
 		end
 	end
 	
-	if item then
-		if item.stackable then
-			local fx = item.amount - (amount or 1)
+	if slot then
+		if slot.stackable then
+			local fx = slot.amount - (amount or 1)
 			if fx < 1 then
-				return itemRemove(item, self.owner)
+				return slotEmpty(slot, self.owner)
 			else
-				itemSubstract(item, amount)
-				return item
+				slotSubstract(slot, amount)
+				return slot
 			end
 		else
-			return itemRemove(item, self.owner)
+			return slotEmpty(slot, self.owner)
 		end
 	end
 	
 	
-	return item
+	return slot
 end
 
-stackFetchCraft = function(self, limit)
-	local lookup
-	local k = 1
-	local m = 0
-	local itemList = {}
-	
-	local _table_insert = table.insert
-	
-	for i=1, limit do
-		m = i
-		
-		if limit == 4 and i == 3 then
-			k = k + 1
+--
+local getPoint = function(array, start, increase)
+	increase = increase or 1
+	local finish
+	if increase < 0 then
+		start = start or #array
+		finish = 1
+	else
+		start = start or 1
+		finish = #array
+	end
+
+	for i=start, finish, increase do
+		if array[i] and array[i] > 0 then
+			return i
 		end
-		
-		if lookup then
-			k = k + 1
-			if self.slot[m].itemId == craftsData[lookup][1][k] then
-				_table_insert(itemList, self.slot[m])
-				if k == #craftsData[lookup][1] then
-					return craftsData[lookup][2], itemList
-				end
-			else
-				if k <= #craftsData[lookup][1] then
-					lookup = nil
-					k = 0
-					break
-				else
-					return craftsData[lookup][2], itemList
-				end
-			end
+	end
+end
+
+evaluateStackCraftSize = function(grid)
+	local xsize = {}
+	local ysize = {}
+	local xindex, yindex
+	
+	local sqsize = math.sqrt(#grid-1)
+	
+	for i=1, sqsize^2 do
+		xindex = ((i-1)%sqsize)+1
+		yindex = math.ceil(i/sqsize)
+		if grid[i].itemId ~= 0 then
+			xsize[xindex] = (xsize[xindex] or 0) + 1
+			ysize[yindex] = (ysize[yindex] or 0) + 1
 		else
-			for j, craft in next, craftsData do
-				if self.slot[m].itemId == craft[1][1] then
-					lookup = j
-					k = 1
-					_table_insert(itemList, self.slot[m])
+			xsize[xindex] = xsize[xindex] or 0
+			ysize[yindex] = ysize[yindex] or 0
+		end
+	end
+	
+
+	local xstart, xend = getPoint(xsize) or 1, getPoint(xsize, _, -1) or sqsize
+	local ystart, yend = getPoint(ysize) or 1, getPoint(ysize, _, -1) or sqsize
+	
+	return xstart, xend, ystart, yend, sqsize
+end
+
+stackFetchCraft = function(self)
+	local lookup, lindex
+	local k = 1
+	
+	local slotList = self.slot
+	local slot
+	
+	local xs, xe, ys, ye, sqsize = evaluateStackCraftSize(slotList)
+	
+	local height, width = (ye-ys)+1, (xe-xs)+1 
+	
+	local y = ys
+	local x = xs
+	
+	local sindex = 1
+	local yindex
+	local loop = true
+	
+	local craft, recompense
+	local _break
+	local except = {}
+	
+	local li
+	repeat
+		_break = false
+		lookup = nil
+		y = ys
+		while y <= ye do
+			yindex = (y-1) * sqsize
+			li = (y-ys)+1
+			
+			x = xs
+			while x <= xe do
+				sindex = yindex + x
+				slot = slotList[sindex]
+				
+				if y == ys and x == xs then -- lookup
+					for i, craftInfo in next, craftsData do
+						if not except[i] then
+							craft = craftInfo[1]
+							if #craft == height and #craft[1] == width then
+								if craft[1][1] == slot.itemId then
+									lookup = craft
+									lindex = i
+								else
+									except[i] = true
+								end
+							else
+								except[i] = true
+							end
+						end
+					end
 					
-					if #craftsData[lookup][1] == 1 then
-						return craftsData[lookup][2], itemList
-					else
+					if not lookup then
+						loop = false
+						_break = true
 						break
 					end
+				else
+					if lookup[li] then
+						if lookup[li][(x-xs)+1] ~= slot.itemId then
+							except[lindex] = true
+							_break = true
+						end
+					else
+						except[lindex] = true
+						_break = true
+					end
 				end
+				
+				if _break then
+					break
+				end
+				x = x + 1
+			end
+			if _break then
+				break
+			end
+			y = y + 1
+		end
+		
+		if lindex then
+			if not except[lindex] then
+				loop = false
+				return craftsData[lindex][2]
 			end
 		end
-	end
+	until (not loop)
 end
 
-
-stackExchangeItemsPosition = function(item1, item2)
+stackExchangeItemsPosition = function(slot1, slot2)
 	local exchange = {
-		itemId = item1.itemId,
-		stackable = item1.stackable,
-		amount = item1.amount,
-		sprite = item1.sprite--, stack = item1.stack
+		itemId = slot1.itemId,
+		stackable = slot1.stackable,
+		amount = slot1.amount,
+		sprite = slot1.sprite,
+		object = slot1.object--, stack = slot1.stack
 	}
 	
-	item1.itemId = item2.itemId
-	item1.stackable = item2.stackable
-	item1.amount = item2.amount
-	item1.sprite = item2.sprite
-	--item1.stack = item2.stack
+	slot1.itemId = slot2.itemId
+	slot1.stackable = slot2.stackable
+	slot1.amount = slot2.amount
+	slot1.sprite = slot2.sprite
+	slot1.object = slot2.object
+	--slot1.stack = slot2.stack
 	
-	item2.itemId = exchange.itemId
-	item2.stackable = exchange.stackable
-	item2.amount = exchange.amount
-	item2.sprite = exchange.sprite
-	--item2.stack = exchange.stack
+	slot2.itemId = exchange.itemId
+	slot2.stackable = exchange.stackable
+	slot2.amount = exchange.amount
+	slot2.sprite = exchange.sprite
+	slot2.object = exchange.object
+	--slot2.stack = exchange.stack
 end

@@ -18,7 +18,7 @@ stackNew = function(size, owner, dir, idoffset, name)
         displaying = false
     }
     
-    local _itemNew = itemNew
+    local _slotNew = slotNew
     
     local id = 0
     local ddat = {}
@@ -82,18 +82,18 @@ stackNew = function(size, owner, dir, idoffset, name)
                 callback = slot[i].callback or ref.callback
             }
         end
-        stack.slot[i] = _itemNew(idoffset + i, 0, false, 0, ddat[i], stack.identifier)
+        stack.slot[i] = _slotNew(idoffset + i, 0, false, 0, ddat[i], stack.identifier)
     end
     
     return stack
 end
 
 stackFill = function(self, element, amount)
-    local _itemCreate = itemCreate
+    local _slotFill = slotFill
     
     if element ~= 0 then
         for i=1, #self.slot do
-            _itemCreate(self.slot[i], element, amount, amount ~= 0)
+            _slotFill(self.slot[i], element, amount, amount ~= 0)
         end
         
         return true
@@ -103,10 +103,10 @@ stackFill = function(self, element, amount)
 end
  
 stackEmpty = function(self)
-    local _itemRemove = itemRemove
+    local _slotEmpty = slotEmpty
     
     for i=1, #self.slot do
-        _itemRemove(self.slot[i], self.owner)
+        _slotEmpty(self.slot[i], self.owner)
     end
     
     return true 

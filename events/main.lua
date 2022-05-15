@@ -64,83 +64,9 @@ onEvent("PlayerLeft", function(playerName)
 	map.userHandle[playerName] = nil
 end)
 
-onEvent("ChatCommand", function(playerName, command)
-	local args = {}
-	
-	for arg in command:gmatch("%S+") do
-		args[#args+1] = arg
-	end
-	command = args[1]
-	
-	uiDisplayDefined(args[1], playerName)
 
-	if command == "lang" or command == "language" then
-		room.player[playerName].language = args[2] or "xx"
-	elseif args[1] == "seed" then
-		ui.addPopup(169, 0, string.format("<p align='center'>World's seed:\n%d", map.seed), playerName, 300, 180, 200, true)
-	elseif args[1] == "tp" then
-		if room.isTribe or playerName == modulo.creator then
-			local pa = tonumber(args[2])
-			local pb = tonumber(args[3])
-			
-			local withinRange = function(a, b) return (a >= 0 and a <= 32640) and (b >= 0 and b <= 8392) end
-			
-			if pa and pb then
-				if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
-			elseif not pa or not pb then
-				local pl = room.player[ args[2] ]
-				local tgt = room.player[args[3]]
-				if pl then
-					if pl.isAlive then
-						if tgt then
-							playerName = pl.name
-							pa = tgt.x
-							pb = tgt.y
-						else
-							pa = pl.x
-							pb = pl.y
-						end
-						if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
-					end
-				end
-			end
-		end
-	elseif args[1] == "debug" then
-		local player = room.player[args[2]]
-		
-		if player then printt(player, {"keys", "slot", "interaction"}) end
-	elseif args[1] == "announce" or args[1] == "chatannounce" then
-		if playerName == modulo.creator then
-			local _output = "<CEP><b>[Room Announcement]</b></CEP> <D>"
-			for i=2, #args do
-				_output = _output .. args[i] .. " "
-			end
-			_output = _output .. "</D>"
-      
-			if args[1] == "chatannounce" then
-				tfm.exec.chatMessage(_output, nil)
-			else
-				ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
-			end
-		end
-	elseif args[1] == "stackFill" then
-		local player = room.player[args[4] or playerName]
-		if playerName == modulo.creator then
-			stackFill(player.inventory.invbar, tonumber(args[2]), tonumber(args[3]) or 64)
-			stackRefresh(player.inventory.invbar, 0, player.inventory.barActive and 0 or -36, player.inventory.barActive)
-		end
-	elseif args[1] == "disable" and playerName == modulo.creator then
-		if room.player[args[2]] then
-			room.player[args[2]]= nil
-			tfm.exec.killPlayer(args[2])
-		end
-	elseif args[1] == "enable" and playerName == modulo.creator then
-		if not room.player[args[2]] then
-			room.player[args[2]] = playerNew(args[2], map.spawnPoint)
-			ui.removeTextArea(42069, args[2])
-			tfm.exec.respawnPlayer(args[2])
-		end
-	end
+onEvent("ChatCommand", function(playerName, command)
+	commandHandle(command, playerName)
 end)
 
 require("Inventory")

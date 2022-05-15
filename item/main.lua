@@ -1,3 +1,2 @@
-require("stat")
-require("operations")
-require("graphics")
+require("new")
+require("interaction")

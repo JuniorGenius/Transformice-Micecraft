@@ -36,6 +36,9 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		dx = xp*32,
 		dy = ((256-yp)*32)+200,
 		
+		hardness = meta.hardness,
+		drop = meta.drop,
+		
 		timestamp = 0,
 		event = 0,
 		

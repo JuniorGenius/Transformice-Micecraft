@@ -10,6 +10,8 @@ blockDestroy = function(self, display, playerObject, dontUpdate)
 			self.type = 0
 			self.timestamp = -os.time()
 			self.handle = nil
+			self.drop = 0
+			self.hardness = 0
 			
 			self.onCreate = dummyFunc
 			self.onPlacement = dummyFunc
@@ -55,6 +57,8 @@ blockCreate = function(self, type, ghost, display, playerObject)
 		self.shadowness = ghost and 0.33 or 0
 		self.interact = meta.interact
 		
+		self.hardness = meta.hardness
+		self.drop = meta.drop
 		self.durability = meta.durability
 		
 		self.onInteract = meta.onInteract
@@ -146,7 +150,7 @@ end
 
 blockGetInventory = function(self)
 	if self.handle then
-		return self.handle
+		return unreference(self.handle)
 	end
 end
 

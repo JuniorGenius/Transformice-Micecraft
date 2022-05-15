@@ -1,5 +1,5 @@
 stackDisplay = function(self, xOffset, yOffset, displaySprite)
-    local _itemDisplay = itemDisplay
+    local _slotDisplay = slotDisplay
     
     if displaySprite then
         if self.sprite and self.sprite[1] then
@@ -20,7 +20,7 @@ stackDisplay = function(self, xOffset, yOffset, displaySprite)
 
     
     for i=1, #self.slot do
-        _itemDisplay(self.slot[i], self.owner, xOffset or 0, yOffset or 0)
+        _slotDisplay(self.slot[i], self.owner, xOffset or 0, yOffset or 0)
     end
     
     self.displaying = true
@@ -30,7 +30,7 @@ end
 
 stackHide = function(self)
     if not self then return end
-    local _itemHide = itemHide
+    local _slotHide = slotHide
 
     if self.sprite[3] then
         _tfm_exec_removeImage(self.sprite[3])
@@ -38,7 +38,7 @@ stackHide = function(self)
     end
     
     for i=1, #self.slot do
-        _itemHide(self.slot[i], self.owner)
+        _slotHide(self.slot[i], self.owner)
     end
     
     self.displaying = false

@@ -19,7 +19,7 @@ onEvent("Mouse", function(playerName, x, y)
 					if block.id ~= 0 then
 						playerDestroyBlock(Player, x, y)
 					else
-						Player.inventory.selectedSlot:onHit(x, y)
+						Player.inventory.selectedSlot.object:onHit(x, y)
 					end
 				end
 			end
@@ -58,19 +58,19 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			
 			-- Don't use Z / Q / S / D / W / A 
 			if key == 46 or key == 88 then -- delete/x
-				local item = Player.inventory.selectedSlot
-				if item then itemRemove(item, playerName) end
+				local slot = Player.inventory.selectedSlot
+				if slot then slotEmpty(slot, playerName) end
 			elseif key == 76 then -- L
-				local item = Player.inventory.selectedSlot
-				playerInventoryExtract(Player, item.itemId, 1, item.stack, item)
+				local slot = Player.inventory.selectedSlot
+				playerInventoryExtract(Player, slot.itemId, 1, slot.stack, slot)
 				local offset = 0
 				if Player.inventory.displaying then
-					if item.stack == "invbar" then
+					if slot.stack == "invbar" then
 						offset = -36
 					end
 				end
 				
-				itemRefresh(item, Player.name, 0, offset)
+				slotRefresh(slot, Player.name, 0, offset)
 			elseif key == 69 then -- E
                 if os.time() > Player.inventory.timestamp then
                     if Player.inventory.displaying then
@@ -107,12 +107,16 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			end
 			
 			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
-				local slot = key - (key <= 57 and 48 or 96)
-				playerChangeSlot(Player, "invbar", slot, (not Player.onWindow))
+				local slotNum = key - (key <= 57 and 48 or 96)
+				playerChangeSlot(Player, "invbar", slotNum, (not Player.onWindow))
 			end
 			
 			if key == 16 or key == 17 then
 				local scale = 1.5
+				if Player.withinRange then
+					tfm.exec.removeImage(Player.withinRange)
+				end
+				
 				Player.withinRange = _tfm_exec_addImage(
 					"1809609266a.png", "$"..playerName,
 					0, 0,

@@ -48,7 +48,7 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 			local origin = Player.inventory.selectedSlot
 			if origin then
 				select, newSlot = playerMoveItem(Player, origin, select, true)
-				playerHudInteract(Player, eventName, select)
+				playerHudInteract(Player, select)
 			end
 		end
 		
