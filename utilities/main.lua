@@ -272,8 +272,16 @@ inherit = function(tbl, ex)
 	
 	local deep
 	
+	if type(obj) ~= "table" then
+		obj = {}
+	end
+	
 	for k, v in next, ex do
-		obj[k] = unreference(v)
+		if type(v) == "table" then
+			obj[k] = inherit(obj[k], v)
+		else
+			obj[k] = unreference(v)
+		end
 	end
 	
 	return obj

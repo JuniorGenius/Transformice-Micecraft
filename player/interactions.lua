@@ -1,9 +1,13 @@
+inWorldBounds = function(x, y)
+	return(x >= 0 and x < 32640) and (y >= 200 and y < 8392)
+end
+
 playerPlaceObject = function(self, x, y, ghost)
-	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-		local item = self.inventory.selectedSlot
-		if not item then return end
+	if inWorldBounds(x, y) then
+		local slot = self.inventory.selectedSlot
+		if not slot then return end
 		
-		if item.itemId <= 256 and item.amount >= 1 then
+		if --[[slot.object.placeable and]] slot.amount >= 1 then
 			local _getPosBlock = getPosBlock
 			local block = _getPosBlock(x, y-200)
 			
@@ -26,13 +30,13 @@ playerPlaceObject = function(self, x, y, ghost)
 					end
 					
 					if around then
-						blockCreate(block, item.itemId, ghost, true)
-						local item = playerInventoryExtract(self, item.itemId, 1, true, self.inventory.selectedSlot)
-						if item then
+						blockCreate(block, slot.itemId, ghost, true)
+						local slot = playerInventoryExtract(self, slot.itemId, 1, true, self.inventory.selectedSlot)
+						if slot then
 							tfm.exec.setPlayerScore(self.name, -1, true)
 							playerActualizeHoldingItem(self)
-							if item.stack == "invbar" then
-								itemRefresh(item, self.name, 0, 0)
+							if slot.stack == "invbar" then
+								slotRefresh(slot, self.name, 0, 0)
 							end
 						end
 						--playerUpdateInventoryBar(self)
@@ -47,10 +51,10 @@ end
 playerDestroyBlock = function(self, x, y)
 	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 		local _getPosBlock = getPosBlock
-		local block = _getPosBlock(x, y-200)
-		if block.type ~= 0 then
+		local Block = _getPosBlock(x, y-200)
+		if Block.type ~= 0 then
 			local ldis = 80
-			local dist = distance(self.x, self.y, block.dx+16, block.dy+16)
+			local dist = distance(self.x, self.y, Block.dx+16, Block.dy+16)
 			
 			if dist < ldis then
 				local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
@@ -67,20 +71,19 @@ playerDestroyBlock = function(self, x, y)
 				end
 				
 				if not around then
-					local drop = objectMetadata[block.type].drop
-					local destroyed = blockDamage(block, 10)
-					if destroyed then
-						if drop ~= 0 and block.type == 0 then
-							local item = playerInventoryInsert(self, drop, 1, "invbar", true)
-							if item then
+					local Slot = self.inventory.selectedSlot
+					local drop = itemDealBlockDamage(Slot.object, Block)
+					if drop ~= 0 then
+						if Block.type == 0 then
+							local Slot = playerInventoryInsert(self, drop, 1, "invbar", true)
+							if Slot then
 								tfm.exec.setPlayerScore(self.name, 1, true)
 								playerActualizeHoldingItem(self)
-								if item.stack == "invbar" then
-									itemRefresh(item, self.name, 0, 0)
+								if Slot.stack == "invbar" then
+									slotRefresh(Slot, self.name, 0, 0)
 								end
 							end
 						end
-						--recalculateShadows(block, 9*(notAround/4))
 					end
 				end
 			end

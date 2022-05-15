@@ -86,6 +86,7 @@ local map = {
 	}]]
 }
 
+local commandList = {}
 local uiHandle = {}
 local uiResources = {}--[[
 element = {

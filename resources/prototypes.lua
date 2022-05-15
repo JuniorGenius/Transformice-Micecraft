@@ -29,15 +29,15 @@ local 	worldRefreshChunks,
 		handleChunksRefreshing, 
 		recalculateShadows
 		
-local	itemNew,
-		itemCreate,
-		itemRemove,
-		itemAdd,
-		itemSubstract,
+local	slotNew,
+		slotFill,
+		slotEmpty,
+		slotAdd,
+		slotSubstract,
 		itemReturnDisplayPositions,
-		itemDisplay,
-		itemHide,
-		itemMove
+		slotDisplay,
+		slotHide,
+		slotItemMove
 		
 local	stackFindItem,
 		stackFindItem,

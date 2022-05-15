@@ -122,7 +122,7 @@ end
 
 playerHideInventory = function(self)
 	self.inventory.displaying = false
-	local _itemRemove = itemRemove
+	local _slotEmpty = slotEmpty
 	
 	local Inventory = self.inventory
 	
@@ -144,7 +144,7 @@ playerHideInventory = function(self)
 			if key < stack.output then
 				playerInventoryInsert(self, element.itemId, element.amount, "bag", false)
 			end
-			_itemRemove(element)
+			_slotEmpty(element)
 		end
 	end
 	
@@ -213,10 +213,10 @@ playerMoveItem = function(self, origin, select, display)
 		
 		do -- Movement
 			if self.keys[17] then
-				origin, select, newSlot = itemMove(origin, select, 0, pass)
+				origin, select, newSlot = slotItemMove(origin, select, 0, pass)
 			elseif self.keys[16] then
 				local amount = (origin.id == 0 and 0 or 1)
-				origin, select, newSlot = itemMove(origin, select, amount, pass)
+				origin, select, newSlot = slotItemMove(origin, select, amount, pass)
 			end
 		end
 		
@@ -225,7 +225,7 @@ playerMoveItem = function(self, origin, select, display)
 				local onBar = destinatary.inventory.barActive
 				local onInv = select.stack == "invbar"
 				if (onInv and onBar) or not onBar then
-					itemRefresh(select, destinatary.name, 0,
+					slotRefresh(select, destinatary.name, 0,
 						onInv and (onBar and 0 or -36) or 0
 					)
 				end
@@ -235,7 +235,7 @@ playerMoveItem = function(self, origin, select, display)
 				local onBar = self.inventory.barActive
 				local onInv = origin.stack == "invbar"
 				if (onInv and onBar) or not onBar then
-					itemRefresh(origin, self.name, 0,
+					slotRefresh(origin, self.name, 0,
 						onInv and (onBar and 0 or -36) or 0
 					)
 				end
@@ -246,46 +246,49 @@ playerMoveItem = function(self, origin, select, display)
 	return select, newSlot
 end
 
-playerHudInteract = function(self, stackTarget, select, blockObject)
+playerHudInteract = function(self, select)
 	local origin = self.inventory.selectedSlot
 	
-	local destiny = self.inventory[stackTarget]
+	local destinity = self.inventory[select.stack]
 	local source = self.inventory[origin.stack]
 	
-	local output = source.output and source.slot[source.output] or nil
+	local output = source.slot[source.output]
 	
-	local _item, itemList = select:callback(self, blockObject)
+	local result, ores, sres
+	--[[if output and origin.id == output.id then
+		ores = origin:callback(self, blockObject)
+	else]]
+		sres = select:callback(self, blockObject)
+	--end
 	
-	if not (_item and itemList) then
-		print("origin")
-		_item, itemList = origin:callback(self, blockObject)
-	end
+	result = sres or ores
 	
-	if _item and itemList then
-		printt({_item = _item, select = select, origin = origin})
-		if _item.id == origin.id then
-			if select.id ~= origin.id then
-				for _, element in next, itemList do
-					
-					playerInventoryExtract(
-							self,
-							element.itemId, 1,
-							self.inventory[_item.stack],
-							element
-					)
-					
-					itemRefresh(element, self.name, 0, 0)
+	printt({origin, select, output}, {"object", "sprite"})
+	
+	if result then
+		if output then
+			if origin.id == output.id then
+				if select.id ~= origin.id then
+					for id, slot in next, source do
+						if not slot.output then
+							playerInventoryExtract(self,
+								slot.itemId, 1,
+								source, slot
+							)
+						end
+					end
+				else
+					slotRefresh(output, self.name, 0, 0)
 				end
-				itemRemove(_item, self.name)
 			else
-				itemRefresh(_item, self.name, 0, 0)
+				slotRefresh(output, self.name, 0, 0)
 			end
 		else
-			itemDisplay(_item, self.name)
+			slotRefresh(select, self.name, 0, 0)
 		end
 	else
 		if output then
-			itemRemove(output, self.name)
+			slotEmpty(output, self.name)
 		end
 	end
 end

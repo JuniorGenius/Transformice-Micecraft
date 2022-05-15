@@ -36,6 +36,11 @@ wrap = function(root, filename)
 		
 		return wrap(root, file)
 	end
+	local pstr = root .. "/" .. filename .. ".lua"
+	local open = ("\n-- >> " .. pstr .. " --\n")
+	local closure = ("\n-- " .. pstr .. " << --\n")
+	
+	filestr = open .. filestr .. closure
 	
 	return filestr:gsub('require%(".-"%)', req), "success"
 end

@@ -3,6 +3,10 @@
 
 -- ==========	RESOURCES	========== --
 
+
+-- >> resources/main.lua --
+
+-- >> resources/init.lua --
 local string = string
 local math = math
 local table = table
@@ -48,7 +52,7 @@ local modulo = {
 	timeout = false,
 	apiVersion = "0.28",
 	tfmVersion = "7.99",
-	lastest = "13/05/2022 07:22:10"
+	lastest = "15/05/2022 12:29:09"
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -277,6 +281,14 @@ local 	chunkNew,
 
 
 
+local 	itemNew,
+		itemDelete,
+		itemCheckStatus,
+		itemDealBlockDamage,
+		itemDealEntityDamage
+
+
+
 local 	playerNew,
 		playerAlert,
 		playerCleanAlert,
@@ -305,17 +317,17 @@ local 	playerNew,
 
 
 
-local 	itemNew,
-		itemCreate,
-		itemRemove,
-		itemAdd,
-		itemSubstract,
-		itemDisplaceAll,
-		itemDisplaceAmount,
-		itemMove,
-		itemDisplay,
-		itemHide,
-		itemRefresh
+local 	slotNew,
+		slotFill,
+		slotEmpty,
+		slotAdd,
+		slotSubstract,
+		slotDisplaceAll,
+		slotDisplaceAmount,
+		slotItemMove,
+		slotDisplay,
+		slotHide,
+		slotRefresh
 
 
 
@@ -326,6 +338,7 @@ local 	stackNew,
 		stackCreateItem,
 		stackInsertItem,
 		stackExtractItem,
+		evaluateStackCraftSize,
 		stackFetchCraft,
 		stackExchangeItemsPosition,
 		stackDisplay,
@@ -346,6 +359,10 @@ local 	worldRefreshChunks,
 
 
 
+-- resources/init.lua << --
+
+
+-- >> resources/object.lua --
 
 -- If the data references a function, then put it in ./main/resources
 -- If not, put it here. Just make sure to declare the local variable
@@ -372,11 +389,32 @@ local craftsData = {
 			- sub[1] = item recompense
 			- sub[2] = amount of the item
 	]]
-	{{1,1,0,1,1}, {6, 64}},
-	{{19,19,19,19,0,19,19,19,19}, {51, 1}},
-	{{73}, {70, 4}},
-	{{75}, {70, 4}},
-	{{70,70,0,70,70}, {50, 1}}
+	{{{1,1}, {1,1}}, {6, 64}},
+	{{{19,19,19}, {19,0,19}, {19,19,19}}, {51, 1}},
+	{{{73}}, {70, 4}},
+	{{{75}}, {70, 4}},
+	{{{70,70}, {70,70}}, {50, 1}},
+	{{{70},{70}}, {513, 4}},
+	-- Pickaxe
+	{{{70,70,70},{0,513,0},{0,513,0}}, {530, 1}},
+	{{{19,19,19},{0,513,0},{0,513,0}}, {531, 1}},
+	{{{521,521,521},{0,513,0},{0,513,0}}, {532, 1}},
+	{{{522,522,522},{0,513,0},{0,513,0}}, {534, 1}},
+	-- Sword
+	{{{70},{70},{513}}, {540,1}},
+	{{{19},{19},{513}}, {541,1}},
+	{{{521},{521},{513}}, {542,1}},
+	{{{522},{522},{513}}, {544,1}},
+	-- Axe {{}, {,}},
+	{{{70,70},{70,513},{0,513}}, {550,1}},
+	{{{19,19},{19,513},{0,513}}, {551,1}},
+	{{{521,521},{521,513},{0,513}}, {552,1}},
+	{{{522,522},{522,513},{0,513}}, {554,1}},
+	-- Shovel
+	{{{70},{513},{513}}, {560,1}},
+	{{{19},{513},{513}}, {561,1}},
+	{{{521},{513},{513}}, {562,1}},
+	{{{522},{513},{513}}, {564,1}}
 }
 
 local stackPresets
@@ -393,9 +431,15 @@ local mossSprites = {"17dd4b9d75e.png", "17dd4bb075d.png", "17dd4ba235f.png", "1
 local shadowSprite = "17e2d5113f3.png"
 
 local cmyk = {{"17e13158459.png", 0}, {"17e13161c88.png", 0}, {"17e1316685d.png", 0}, {"17e1315d05f.png", 0}}
+-- resources/object.lua << --
+
+-- resources/main.lua << --
+
 
 -- ==========	UTILITIES	========== --
 
+
+-- >> utilities/main.lua --
 _math_round = function(number, precision)
 	local _mul = 10^precision
 	return math.floor(number*_mul) / _mul
@@ -670,8 +714,16 @@ inherit = function(tbl, ex)
 	
 	local deep
 	
+	if type(obj) ~= "table" then
+		obj = {}
+	end
+	
 	for k, v in next, ex do
-		obj[k] = unreference(v)
+		if type(v) == "table" then
+			obj[k] = inherit(obj[k], v)
+		else
+			obj[k] = unreference(v)
+		end
 	end
 	
 	return obj
@@ -701,9 +753,15 @@ removeEvent = function(id)
 		return table.remove(actionsHandle, pos)
 	end
 end
+-- utilities/main.lua << --
+
 
 -- ==========	UIHANDLE	========== --
 
+
+-- >> uiHandle/main.lua --
+
+-- >> uiHandle/init.lua --
 setElement = function(type, identifier, height, width, yoff, xoff, ex)
 	local obj = {}
 	
@@ -800,6 +858,10 @@ uiResources[1] = inherit(uiResources[0], {
 	)
 	[6] = ^copy^
 })]]
+-- uiHandle/init.lua << --
+
+
+-- >> uiHandle/management.lua --
 local _ui_addTextArea = ui.addTextArea
 local _ui_removeTextArea = ui.removeTextArea
 local _ui_updateTextArea = ui.updateTextArea
@@ -1018,6 +1080,10 @@ uiUpdateWindowText = function(windowId, updateText, targetPlayer)
         end
     end
 end
+-- uiHandle/management.lua << --
+
+
+-- >> uiHandle/misc.lua --
 local onPredefinedRegister = {
     ["help"] = true,
     ["controls"] = true,
@@ -1056,9 +1122,15 @@ uiDisplayDefined = function(typedef, playerName)
         )
     end
 end
+-- uiHandle/misc.lua << --
+
+-- uiHandle/main.lua << --
+
 
 -- ==========	TRANSLATIONS	========== --
 
+
+-- >> translations/main.lua --
 local Text = {}
 
 translate = function(resource, language, _format)
@@ -1096,6 +1168,8 @@ translate = function(resource, language, _format)
     return obj
 end
 
+
+-- >> translations/en.lua --
 Text["en"] = {
     help = {
         title = "Help",
@@ -1207,9 +1281,13 @@ Active Events: %d]]
 }
 
 
+-- translations/en.lua << --
+
 
 Text["xx"] = Text["en"]
 
+
+-- >> translations/es.lua --
 Text["es"] = inherit(Text["xx"], {
     help = {
         title = "Ayuda",
@@ -1320,7 +1398,11 @@ Estrés: %d/%d ms
 Eventos Activos: %d]]
     }
 })
+-- translations/es.lua << --
 
+
+
+-- >> translations/br.lua --
 Text["br"] = inherit(Text["xx"], {
     help = {
         title = "Ajuda",
@@ -1378,9 +1460,17 @@ Espero que goste !]]
         worldfail = "Falha no carregamento do mundo."
     }
 })
+-- translations/br.lua << --
+
+-- translations/main.lua << --
+
 
 -- ==========	BLOCK	========== --
 
+
+-- >> block/main.lua --
+
+-- >> block/new.lua --
 blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, surfacePoint)
 	local xp, yp = getTruePosMatrix(chunk, x, y)
 	yp = 256-yp
@@ -1419,6 +1509,9 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		dx = xp*32,
 		dy = ((256-yp)*32)+200,
 		
+		hardness = meta.hardness,
+		drop = meta.drop,
+		
 		timestamp = 0,
 		event = 0,
 		
@@ -1454,6 +1547,10 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 	
 	return block
 end
+-- block/new.lua << --
+
+
+-- >> block/graphics.lua --
 local _tfm_exec_addImage = tfm.exec.addImage
 local blockDisplay = function(self)
 	if self.type ~= 0 then
@@ -1482,6 +1579,10 @@ local blockHide = function(self)
 		end
 	end
 end
+-- block/graphics.lua << --
+
+
+-- >> block/interaction.lua --
 
 blockDestroy = function(self, display, playerObject, dontUpdate)
 	if self.type > 0 and self.type <= 256 then
@@ -1494,6 +1595,8 @@ blockDestroy = function(self, display, playerObject, dontUpdate)
 			self.type = 0
 			self.timestamp = -os.time()
 			self.handle = nil
+			self.drop = 0
+			self.hardness = 0
 			
 			self.onCreate = dummyFunc
 			self.onPlacement = dummyFunc
@@ -1539,6 +1642,8 @@ blockCreate = function(self, type, ghost, display, playerObject)
 		self.shadowness = ghost and 0.33 or 0
 		self.interact = meta.interact
 		
+		self.hardness = meta.hardness
+		self.drop = meta.drop
 		self.durability = meta.durability
 		
 		self.onInteract = meta.onInteract
@@ -1630,7 +1735,7 @@ end
 
 blockGetInventory = function(self)
 	if self.handle then
-		return self.handle
+		return unreference(self.handle)
 	end
 end
 
@@ -1645,9 +1750,17 @@ blockInteract = function(self, playerObject)
 	end
 end
 
+-- block/interaction.lua << --
+
+-- block/main.lua << --
+
 
 -- ==========	CHUNK	========== --
 
+
+-- >> chunk/main.lua --
+
+-- >> chunk/init.lua --
 chunkNew = function(id, loaded, activated, biome, heightMaps)
 	local _math_random, _blockNew = math.random, blockNew
 
@@ -1835,6 +1948,10 @@ chunkCalculateCollisions = function(self)
 	
 	return segments
 end
+-- chunk/init.lua << --
+
+
+-- >> chunk/loading.lua --
 chunkLoad = function(self)
 	if not self.loaded then
 		local _blockDisplay = blockDisplay
@@ -1880,6 +1997,10 @@ chunkReload = function(self)
 	
 	return true
 end
+-- chunk/loading.lua << --
+
+
+-- >> chunk/activation.lua --
 chunkActivateSegment = function(self, seg)
 	local obj = self.grounds[1][seg]
 	if obj then
@@ -2043,9 +2164,133 @@ chunkUpdate = function(self, onlyPhysic, onlyVisual)
 	
 	return cc >= 1
 end 
+-- chunk/activation.lua << --
+
+-- chunk/main.lua << --
+
+
+-- ==========	ITEM	========== --
+
+
+-- >> item/main.lua --
+
+-- >> item/new.lua --
+itemNew = function(objectId, name)
+    local meta = objectMetadata[objectId]
+    local item = inherit(meta, {
+        name = name or meta.name,
+        sprite = {[1] = meta.sprite},
+        damage = meta.durability or 0,
+        timestamp = 0
+    })
+
+    if item.sharpness == 0 then
+        item.sharpness = 2
+    end
+    
+    if item.strenght == 0 then
+        item.strenght = 2
+    end
+   
+    return item
+end
+
+itemDelete = function(self)
+    if self.sprite[2] then
+        _tfm_exec_removeImage(self.sprite[2])
+    end
+    
+    local retval = unreference(self)
+    self = nil
+   
+    return retval
+end
+
+--[[
+  ftype = { -- Efectivity against n type of block
+    [0-7] = xR
+		0: all
+		1: sands
+		2: dirts
+		3: weak obj/leaf
+		4: woods
+		5: rocks/metal
+		6: wool
+		7: glass
+  },]]
+-- item/new.lua << --
+
+
+-- >> item/interaction.lua --
+itemCheckStatus = function(self)
+    if self.degradable then
+        if self.damage <= 0 then
+            return itemDelete(self)
+        end
+    end
+end
+
+itemDealBlockDamage = function(self, Block)
+    local damage, drop = 2, 0
+    
+    if Block.type < 512 then
+		if self then
+            
+			if self.strenght ~= 0 then
+				local ft = Block.ftype
+				local multiplier = self.ftype[ft] or self.ftype[0] or 1.0
+				damage = self.strenght * multiplier
+			end
+			
+			if self.degradable then
+				self.damage = self.damage - 1
+			
+				itemCheckStatus(self)
+			end
+            
+            if self.hardness >= Block.hardness then
+                drop = Block.drop
+            end
+		end
+
+        local destroyed = blockDamage(Block, damage)
+        if not destroyed then
+            drop = 0
+        end
+    end
+    
+    return drop
+end
+
+itemDealEntityDamage = function(self, Entity)
+    local damage = 2
+    local Perpetrator = room.player[self.owner]
+    if Entity.isAlive then
+        if self.sharpness ~= 0 then
+            damage = self.sharpness
+        end
+        
+        if self.degradable then
+            self.damage = self.damage - 8
+            
+            itemCheckStatus(self)
+        end
+        
+        return playerDealEntityDamage(Perpetrator, Entity, damage)
+    end
+end
+
+-- item/interaction.lua << --
+
+-- item/main.lua << --
+
 
 -- ==========	PLAYER	========== --
 
+
+-- >> player/main.lua --
+
+-- >> player/new.lua --
 playerNew = function(playerName, spawnPoint)
 	local tfmp = tfm.get.room.playerList[playerName]
 	map.userHandle[playerName] = true
@@ -2123,6 +2368,10 @@ playerNew = function(playerName, spawnPoint)
 	
 	return self
 end
+-- player/new.lua << --
+
+
+-- >> player/alerts.lua --
 playerAlert = function(self, text, offset, color, size, await)
 	if not size then size = text:match("<font[%s+?%S+]*[%s?]*size='(%d+)'[%s?]*>") or 12 end
 	
@@ -2152,6 +2401,10 @@ playerCleanAlert = function(self)
 	return false
 end
 
+-- player/alerts.lua << --
+
+
+-- >> player/inventory.lua --
 --[[playerGetInventorySlot = function(self, id)
 	if id then
 		if id < 100 then
@@ -2276,7 +2529,7 @@ end
 
 playerHideInventory = function(self)
 	self.inventory.displaying = false
-	local _itemRemove = itemRemove
+	local _slotEmpty = slotEmpty
 	
 	local Inventory = self.inventory
 	
@@ -2298,7 +2551,7 @@ playerHideInventory = function(self)
 			if key < stack.output then
 				playerInventoryInsert(self, element.itemId, element.amount, "bag", false)
 			end
-			_itemRemove(element)
+			_slotEmpty(element)
 		end
 	end
 	
@@ -2367,10 +2620,10 @@ playerMoveItem = function(self, origin, select, display)
 		
 		do -- Movement
 			if self.keys[17] then
-				origin, select, newSlot = itemMove(origin, select, 0, pass)
+				origin, select, newSlot = slotItemMove(origin, select, 0, pass)
 			elseif self.keys[16] then
 				local amount = (origin.id == 0 and 0 or 1)
-				origin, select, newSlot = itemMove(origin, select, amount, pass)
+				origin, select, newSlot = slotItemMove(origin, select, amount, pass)
 			end
 		end
 		
@@ -2379,7 +2632,7 @@ playerMoveItem = function(self, origin, select, display)
 				local onBar = destinatary.inventory.barActive
 				local onInv = select.stack == "invbar"
 				if (onInv and onBar) or not onBar then
-					itemRefresh(select, destinatary.name, 0,
+					slotRefresh(select, destinatary.name, 0,
 						onInv and (onBar and 0 or -36) or 0
 					)
 				end
@@ -2389,7 +2642,7 @@ playerMoveItem = function(self, origin, select, display)
 				local onBar = self.inventory.barActive
 				local onInv = origin.stack == "invbar"
 				if (onInv and onBar) or not onBar then
-					itemRefresh(origin, self.name, 0,
+					slotRefresh(origin, self.name, 0,
 						onInv and (onBar and 0 or -36) or 0
 					)
 				end
@@ -2400,55 +2653,62 @@ playerMoveItem = function(self, origin, select, display)
 	return select, newSlot
 end
 
-playerHudInteract = function(self, stackTarget, select, blockObject)
+playerHudInteract = function(self, select)
 	local origin = self.inventory.selectedSlot
 	
-	local destiny = self.inventory[stackTarget]
+	local destinity = self.inventory[select.stack]
 	local source = self.inventory[origin.stack]
 	
-	local output = source.output and source.slot[source.output] or nil
+	local output = source.slot[source.output]
 	
-	local _item, itemList = select:callback(self, blockObject)
+	local result, ores, sres
+	--[[if output and origin.id == output.id then
+		ores = origin:callback(self, blockObject)
+	else]]
+		sres = select:callback(self, blockObject)
+	--end
 	
-	if not (_item and itemList) then
-		print("origin")
-		_item, itemList = origin:callback(self, blockObject)
-	end
+	result = sres or ores
 	
-	if _item and itemList then
-		printt({_item = _item, select = select, origin = origin})
-		if _item.id == origin.id then
-			if select.id ~= origin.id then
-				for _, element in next, itemList do
-					
-					playerInventoryExtract(
-							self,
-							element.itemId, 1,
-							self.inventory[_item.stack],
-							element
-					)
-					
-					itemRefresh(element, self.name, 0, 0)
+	printt({origin, select, output}, {"object", "sprite"})
+	
+	if result then
+		if output then
+			if origin.id == output.id then
+				if select.id ~= origin.id then
+					for id, slot in next, source do
+						if not slot.output then
+							playerInventoryExtract(self,
+								slot.itemId, 1,
+								source, slot
+							)
+						end
+					end
+				else
+					slotRefresh(output, self.name, 0, 0)
 				end
-				itemRemove(_item, self.name)
 			else
-				itemRefresh(_item, self.name, 0, 0)
+				slotRefresh(output, self.name, 0, 0)
 			end
 		else
-			itemDisplay(_item, self.name)
+			slotRefresh(select, self.name, 0, 0)
 		end
 	else
 		if output then
-			itemRemove(output, self.name)
+			slotEmpty(output, self.name)
 		end
 	end
 end
+-- player/inventory.lua << --
+
+
+-- >> player/interactions.lua --
 playerPlaceObject = function(self, x, y, ghost)
 	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-		local item = self.inventory.selectedSlot
-		if not item then return end
+		local slot = self.inventory.selectedSlot
+		if not slot then return end
 		
-		if item.itemId <= 256 and item.amount >= 1 then
+		if --[[slot.object.placeable and]] slot.amount >= 1 then
 			local _getPosBlock = getPosBlock
 			local block = _getPosBlock(x, y-200)
 			
@@ -2471,13 +2731,13 @@ playerPlaceObject = function(self, x, y, ghost)
 					end
 					
 					if around then
-						blockCreate(block, item.itemId, ghost, true)
-						local item = playerInventoryExtract(self, item.itemId, 1, true, self.inventory.selectedSlot)
-						if item then
+						blockCreate(block, slot.itemId, ghost, true)
+						local slot = playerInventoryExtract(self, slot.itemId, 1, true, self.inventory.selectedSlot)
+						if slot then
 							tfm.exec.setPlayerScore(self.name, -1, true)
 							playerActualizeHoldingItem(self)
-							if item.stack == "invbar" then
-								itemRefresh(item, self.name, 0, 0)
+							if slot.stack == "invbar" then
+								slotRefresh(slot, self.name, 0, 0)
 							end
 						end
 						--playerUpdateInventoryBar(self)
@@ -2492,10 +2752,10 @@ end
 playerDestroyBlock = function(self, x, y)
 	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
 		local _getPosBlock = getPosBlock
-		local block = _getPosBlock(x, y-200)
-		if block.type ~= 0 then
+		local Block = _getPosBlock(x, y-200)
+		if Block.type ~= 0 then
 			local ldis = 80
-			local dist = distance(self.x, self.y, block.dx+16, block.dy+16)
+			local dist = distance(self.x, self.y, Block.dx+16, Block.dy+16)
 			
 			if dist < ldis then
 				local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
@@ -2512,20 +2772,19 @@ playerDestroyBlock = function(self, x, y)
 				end
 				
 				if not around then
-					local drop = objectMetadata[block.type].drop
-					local destroyed = blockDamage(block, 10)
-					if destroyed then
-						if drop ~= 0 and block.type == 0 then
-							local item = playerInventoryInsert(self, drop, 1, "invbar", true)
-							if item then
+					local Slot = self.inventory.selectedSlot
+					local drop = itemDealBlockDamage(Slot.object, Block)
+					if drop ~= 0 then
+						if Block.type == 0 then
+							local Slot = playerInventoryInsert(self, drop, 1, "invbar", true)
+							if Slot then
 								tfm.exec.setPlayerScore(self.name, 1, true)
 								playerActualizeHoldingItem(self)
-								if item.stack == "invbar" then
-									itemRefresh(item, self.name, 0, 0)
+								if Slot.stack == "invbar" then
+									slotRefresh(Slot, self.name, 0, 0)
 								end
 							end
 						end
-						--recalculateShadows(block, 9*(notAround/4))
 					end
 				end
 			end
@@ -2556,6 +2815,10 @@ playerBlockInteract = function(self, block)
 		end
 	end
 end
+-- player/interactions.lua << --
+
+
+-- >> player/handle.lua --
 playerStatic = function(self, activate)
 	local playerName = self.name
 	if activate then
@@ -2804,13 +3067,22 @@ playerLoopUpdate = function(self)
 	
 	playerCleanAlert(self)
 end
+-- player/handle.lua << --
 
--- ==========	ITEM	========== --
+-- player/main.lua << --
 
-itemNew = function(id, itemId, stackable, amount, desc, belongsTo)
+
+-- ==========	SLOT	========== --
+
+
+-- >> slot/main.lua --
+
+-- >> slot/stat.lua --
+slotNew = function(id, itemId, stackable, amount, desc, belongsTo)
 	local self = {
 		id = id,
 		itemId = itemId or 0,
+		object = nil,
 		stackable = stackable or true,
 		amount = amount or 0,
 		sprite = {},
@@ -2825,33 +3097,54 @@ itemNew = function(id, itemId, stackable, amount, desc, belongsTo)
 	return self
 end
 
-itemCreate = function(self, itemId, amount, stackable)
+slotFill = function(self, itemId, amount, stackable, object)
 	self.itemId = itemId
 	self.amount = amount or 1
-	self.stackable = stackable or true
-	self.sprite[1] = itemId ~= 0 and objectMetadata[itemId].sprite or nil
+	self.stackable = stackable == nil and true or stackable
+
+	if object then
+		self.object = object
+		self.sprite[1] = object.sprite
+	else
+		self.object = itemNew(itemId)
+		
+		if itemId ~= 0 then
+			self.sprite[1] = objectMetadata[itemId].sprite
+		else
+			self.sprite[1] = nil
+		end
+	end
 	
 	return self
 end
 
-itemRemove = function(self, playerName)
+slotEmpty = function(self, playerName)
 	local item = self
 	
 	self.itemId = 0
 	self.amount = 0
 	self.stackable = false
 	
-	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
+	if self.sprite[2] then
+		tfm.exec.removeImage(self.sprite[2])
+		self.sprite[2] = nil
+	end
+	
 	self.sprite[1] = nil
-	self.sprite[2] = nil
+	
+	self.object = nil
 	
 	ui.removeTextArea(self.id+500, playerName)
 	ui.removeTextArea(self.id+650, playerName)
 	
 	return item
 end
+-- slot/stat.lua << --
 
-itemAdd = function(self, amount)
+
+-- >> slot/operations.lua --
+
+slotAdd = function(self, amount)
 	if self.itemId ~= 0 then
 		if self.stackable then
 			local fixedAmount = self.amount + amount
@@ -2863,7 +3156,7 @@ itemAdd = function(self, amount)
 	return false
 end
 
-itemSubstract = function(self, amount)
+slotSubstract = function(self, amount)
 	if self.itemId ~= 0 then
 		if self.stackable then
 			local fixedAmount = self.amount - amount
@@ -2873,7 +3166,7 @@ itemSubstract = function(self, amount)
 	end
 end
 
-itemDisplaceAll = function(self, direction, source, target)	
+slotDisplaceAll = function(self, direction, source, target)	
 	local newSlot
 	if direction.itemId == 0 then
 		stackExchangeItemsPosition(self, direction)
@@ -2881,17 +3174,17 @@ itemDisplaceAll = function(self, direction, source, target)
 	else
 		if direction.itemId == self.itemId then
 			if direction.amount + self.amount <= 64 then
-				itemAdd(direction, self.amount)
-				itemRemove(self, source.name)
+				slotAdd(direction, self.amount)
+				slotEmpty(self, source.name)
 				newSlot = direction
 			else			
 				local _amount = 64 - direction.amount
-				itemAdd(direction, _amount)
+				slotAdd(direction, _amount)
 				if _amount >= self.amount then
-					itemRemove(self, source.name)
+					slotEmpty(self, source.name)
 					newSlot = direction
 				else
-					itemSubstract(self, _amount)
+					slotSubstract(self, _amount)
 					newSlot = self
 				end
 			end
@@ -2912,7 +3205,7 @@ itemDisplaceAll = function(self, direction, source, target)
 	return newSlot or direction
 end
 
-itemDisplaceAmount = function(self, direction, amount, source, target)
+slotDisplaceAmount = function(self, direction, amount, source, target)
 	local newSlot
 	if (self.itemId == direction.itemId or direction.itemId == 0) and self.stackable then
 		if self.amount > amount then
@@ -2932,19 +3225,19 @@ itemDisplaceAmount = function(self, direction, amount, source, target)
 				newSlot = direction
 			elseif direction.itemId == self.itemId then
 				if direction.amount + amount <= 64 then
-					itemAdd(direction, amount)
-					itemRemove(self, source.name)
+					slotAdd(direction, amount)
+					slotEmpty(self, source.name)
 					
 					newSlot = direction
 				else
 					amount = 64 - direction.amount
-					itemAdd(direction, amount)
+					slotAdd(direction, amount)
 					if direction.amount + amount <= 64 then
 						if amount >= self.amount then
-							itemRemove(self, source.name)
+							slotEmpty(self, source.name)
 							newSlot = direction
 						else
-							itemSubstract(self, amount)
+							slotSubstract(self, amount)
 							newSlot = self
 						end
 					else
@@ -2960,7 +3253,7 @@ itemDisplaceAmount = function(self, direction, amount, source, target)
 	return newSlot 
 end
 
-itemMove = function(self, direction, amount, playerName)
+slotItemMove = function(self, direction, amount, playerName)
 	local target, source
 	
 	if type(playerName) == "table" then
@@ -2986,9 +3279,9 @@ itemMove = function(self, direction, amount, playerName)
 			newSlot = (target ~= source and self or direction)
 			if direction.allowInsert then
 				if amount == 0 then
-					newSlot = itemDisplaceAll(self, direction, source, target)
+					newSlot = slotDisplaceAll(self, direction, source, target)
 				else
-					newSlot = itemDisplaceAmount(self, direction, amount, source, target)
+					newSlot = slotDisplaceAmount(self, direction, amount, source, target)
 				end
 			end
 		end
@@ -2996,8 +3289,13 @@ itemMove = function(self, direction, amount, playerName)
 	
 	return self, direction, (newSlot or source.inventory.selectedSlot)
 end
+-- slot/operations.lua << --
 
-itemDisplay = function(self, playerName, xOffset, yOffset)
+
+-- >> slot/graphics.lua --
+
+slotDisplay = function(self, playerName, xOffset, yOffset)
+	-- Add to display durability of the object
 	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
 	
 	local scale = self.size / 32
@@ -3046,7 +3344,7 @@ itemDisplay = function(self, playerName, xOffset, yOffset)
 	return {dx, dy}
 end
 
-itemHide = function(self, playerName)
+slotHide = function(self, playerName)
 	if self.sprite[2] then
 		tfm.exec.removeImage(self.sprite[2])
 		self.sprite[2] = nil
@@ -3058,14 +3356,22 @@ itemHide = function(self, playerName)
 	_ui_removeTextArea(self.id+650, playerName)
 end
 
-itemRefresh = function(self, playerName, xOffset, yOffset)
-	itemHide(self, playerName)
-	itemDisplay(self, playerName, xOffset, yOffset)
+slotRefresh = function(self, playerName, xOffset, yOffset)
+	slotHide(self, playerName)
+	slotDisplay(self, playerName, xOffset, yOffset)
 end
+-- slot/graphics.lua << --
+
+
+-- slot/main.lua << --
 
 
 -- ==========	INVENTORY	========== --
 
+
+-- >> inventory/main.lua --
+
+-- >> inventory/init.lua --
 stackNew = function(size, owner, dir, idoffset, name)
     if not dir then dir = {} end
     
@@ -3086,7 +3392,7 @@ stackNew = function(size, owner, dir, idoffset, name)
         displaying = false
     }
     
-    local _itemNew = itemNew
+    local _slotNew = slotNew
     
     local id = 0
     local ddat = {}
@@ -3150,18 +3456,18 @@ stackNew = function(size, owner, dir, idoffset, name)
                 callback = slot[i].callback or ref.callback
             }
         end
-        stack.slot[i] = _itemNew(idoffset + i, 0, false, 0, ddat[i], stack.identifier)
+        stack.slot[i] = _slotNew(idoffset + i, 0, false, 0, ddat[i], stack.identifier)
     end
     
     return stack
 end
 
 stackFill = function(self, element, amount)
-    local _itemCreate = itemCreate
+    local _slotFill = slotFill
     
     if element ~= 0 then
         for i=1, #self.slot do
-            _itemCreate(self.slot[i], element, amount, amount ~= 0)
+            _slotFill(self.slot[i], element, amount, amount ~= 0)
         end
         
         return true
@@ -3171,14 +3477,18 @@ stackFill = function(self, element, amount)
 end
  
 stackEmpty = function(self)
-    local _itemRemove = itemRemove
+    local _slotEmpty = slotEmpty
     
     for i=1, #self.slot do
-        _itemRemove(self.slot[i], self.owner)
+        _slotEmpty(self.slot[i], self.owner)
     end
     
     return true 
 end
+-- inventory/init.lua << --
+
+
+-- >> inventory/management.lua --
 stackFindItem = function(self, itemId, canStack)
 	for _, item in next, self.slot do
 		if item.itemId == itemId then
@@ -3199,32 +3509,32 @@ stackCreateItem = function(self, itemId, amount, targetSlot)
 	local slot = targetSlot or stackFindItem(self, 0)
 
 	if slot then
-		return itemCreate(slot, itemId, amount, (amount > 0))
+		return slotFill(slot, itemId, amount, (amount > 0))
 	end
 	
 	return nil
 end
 
 stackInsertItem = function(self, itemId, amount, targetSlot)
-	local item = stackFindItem(self, itemId, true)
+	local slot = stackFindItem(self, itemId, true)
 	
 	if targetSlot ~= nil then
 		if type(targetSlot) == "boolean" then
 			if targetSlot then
-				item = room.player[self.owner].inventory.selectedSlot
+				slot = room.player[self.owner].inventory.selectedSlot
 			end
 		elseif type(targetSlot) == "number" then
 			if targetSlot <= #self.slot then
-				item = self.slot[targetSlot]
+				slot = self.slot[targetSlot]
 			end
 		elseif type(targetSlot) == "table" then
-			item = targetSlot
+			slot = targetSlot
 		end
 		
-		if item then
-			if item.itemId ~= 0 then
-				if (item.stackable and item.amount + amount > 64) or item.itemId ~= itemId then
-					item = stackFindItem(self, itemId, true)
+		if slot then
+			if slot.itemId ~= 0 then
+				if (slot.stackable and slot.amount + amount > 64) or slot.itemId ~= itemId then
+					slot = stackFindItem(self, itemId, true)
 				end
 			end
 		else
@@ -3232,126 +3542,218 @@ stackInsertItem = function(self, itemId, amount, targetSlot)
 		end
 	end
 	
-	if item then
-		if item.stackable and item.amount + amount <= 64 and item.itemId == itemId then
-			itemAdd(item, amount)
-			return item
+	if slot then
+		if slot.stackable and slot.amount + amount <= 64 and slot.itemId == itemId then
+			slotAdd(slot, amount)
+			return slot
 		else
-			return stackCreateItem(self, itemId, amount, item)
+			return stackCreateItem(self, itemId, amount, slot)
 		end
 	else
-		return stackCreateItem(self, itemId, amount, item)
+		return stackCreateItem(self, itemId, amount, slot)
 	end
 
-	return item
+	return slot
 end
 
 stackExtractItem = function(self, itemId, amount, targetSlot)
-	local item = stackFindItem(self, itemId)
+	local slot = stackFindItem(self, itemId)
 	local own = room.player[self.owner]
 	
 	if targetSlot ~= nil then
 		if type(targetSlot) == "boolean" then
 			if targetSlot then
-				item = own.inventory.selectedSlot
+				slot = own.inventory.selectedSlot
 			end
 		elseif type(targetSlot) == "number" then
-			item = own.inventory[own.inventory.selectedSlot.stack].slot[targetSlot]
+			slot = own.inventory[own.inventory.selectedSlot.stack].slot[targetSlot]
 		elseif type(targetSlot) == "table" then
-			item = targetSlot 
+			slot = targetSlot 
 		end
 	end
 	
-	if item then
-		if item.stackable then
-			local fx = item.amount - (amount or 1)
+	if slot then
+		if slot.stackable then
+			local fx = slot.amount - (amount or 1)
 			if fx < 1 then
-				return itemRemove(item, self.owner)
+				return slotEmpty(slot, self.owner)
 			else
-				itemSubstract(item, amount)
-				return item
+				slotSubstract(slot, amount)
+				return slot
 			end
 		else
-			return itemRemove(item, self.owner)
+			return slotEmpty(slot, self.owner)
 		end
 	end
 	
 	
-	return item
+	return slot
 end
 
-stackFetchCraft = function(self, limit)
-	local lookup
-	local k = 1
-	local m = 0
-	local itemList = {}
-	
-	local _table_insert = table.insert
-	
-	for i=1, limit do
-		m = i
-		
-		if limit == 4 and i == 3 then
-			k = k + 1
+--
+local getPoint = function(array, start, increase)
+	increase = increase or 1
+	local finish
+	if increase < 0 then
+		start = start or #array
+		finish = 1
+	else
+		start = start or 1
+		finish = #array
+	end
+
+	for i=start, finish, increase do
+		if array[i] and array[i] > 0 then
+			return i
 		end
-		
-		if lookup then
-			k = k + 1
-			if self.slot[m].itemId == craftsData[lookup][1][k] then
-				_table_insert(itemList, self.slot[m])
-				if k == #craftsData[lookup][1] then
-					return craftsData[lookup][2], itemList
-				end
-			else
-				if k <= #craftsData[lookup][1] then
-					lookup = nil
-					k = 0
-					break
-				else
-					return craftsData[lookup][2], itemList
-				end
-			end
+	end
+end
+
+evaluateStackCraftSize = function(grid)
+	local xsize = {}
+	local ysize = {}
+	local xindex, yindex
+	
+	local sqsize = math.sqrt(#grid-1)
+	
+	for i=1, sqsize^2 do
+		xindex = ((i-1)%sqsize)+1
+		yindex = math.ceil(i/sqsize)
+		if grid[i].itemId ~= 0 then
+			xsize[xindex] = (xsize[xindex] or 0) + 1
+			ysize[yindex] = (ysize[yindex] or 0) + 1
 		else
-			for j, craft in next, craftsData do
-				if self.slot[m].itemId == craft[1][1] then
-					lookup = j
-					k = 1
-					_table_insert(itemList, self.slot[m])
+			xsize[xindex] = xsize[xindex] or 0
+			ysize[yindex] = ysize[yindex] or 0
+		end
+	end
+	
+
+	local xstart, xend = getPoint(xsize) or 1, getPoint(xsize, _, -1) or sqsize
+	local ystart, yend = getPoint(ysize) or 1, getPoint(ysize, _, -1) or sqsize
+	
+	return xstart, xend, ystart, yend, sqsize
+end
+
+stackFetchCraft = function(self)
+	local lookup, lindex
+	local k = 1
+	
+	local slotList = self.slot
+	local slot
+	
+	local xs, xe, ys, ye, sqsize = evaluateStackCraftSize(slotList)
+	
+	local height, width = (ye-ys)+1, (xe-xs)+1 
+	
+	local y = ys
+	local x = xs
+	
+	local sindex = 1
+	local yindex
+	local loop = true
+	
+	local craft, recompense
+	local _break
+	local except = {}
+	
+	local li
+	repeat
+		_break = false
+		lookup = nil
+		y = ys
+		while y <= ye do
+			yindex = (y-1) * sqsize
+			li = (y-ys)+1
+			
+			x = xs
+			while x <= xe do
+				sindex = yindex + x
+				slot = slotList[sindex]
+				
+				if y == ys and x == xs then -- lookup
+					for i, craftInfo in next, craftsData do
+						if not except[i] then
+							craft = craftInfo[1]
+							if #craft == height and #craft[1] == width then
+								if craft[1][1] == slot.itemId then
+									lookup = craft
+									lindex = i
+								else
+									except[i] = true
+								end
+							else
+								except[i] = true
+							end
+						end
+					end
 					
-					if #craftsData[lookup][1] == 1 then
-						return craftsData[lookup][2], itemList
-					else
+					if not lookup then
+						loop = false
+						_break = true
 						break
 					end
+				else
+					if lookup[li] then
+						if lookup[li][(x-xs)+1] ~= slot.itemId then
+							except[lindex] = true
+							_break = true
+						end
+					else
+						except[lindex] = true
+						_break = true
+					end
 				end
+				
+				if _break then
+					break
+				end
+				x = x + 1
+			end
+			if _break then
+				break
+			end
+			y = y + 1
+		end
+		
+		if lindex then
+			if not except[lindex] then
+				loop = false
+				return craftsData[lindex][2]
 			end
 		end
-	end
+	until (not loop)
 end
 
-
-stackExchangeItemsPosition = function(item1, item2)
+stackExchangeItemsPosition = function(slot1, slot2)
 	local exchange = {
-		itemId = item1.itemId,
-		stackable = item1.stackable,
-		amount = item1.amount,
-		sprite = item1.sprite--, stack = item1.stack
+		itemId = slot1.itemId,
+		stackable = slot1.stackable,
+		amount = slot1.amount,
+		sprite = slot1.sprite,
+		object = slot1.object--, stack = slot1.stack
 	}
 	
-	item1.itemId = item2.itemId
-	item1.stackable = item2.stackable
-	item1.amount = item2.amount
-	item1.sprite = item2.sprite
-	--item1.stack = item2.stack
+	slot1.itemId = slot2.itemId
+	slot1.stackable = slot2.stackable
+	slot1.amount = slot2.amount
+	slot1.sprite = slot2.sprite
+	slot1.object = slot2.object
+	--slot1.stack = slot2.stack
 	
-	item2.itemId = exchange.itemId
-	item2.stackable = exchange.stackable
-	item2.amount = exchange.amount
-	item2.sprite = exchange.sprite
-	--item2.stack = exchange.stack
+	slot2.itemId = exchange.itemId
+	slot2.stackable = exchange.stackable
+	slot2.amount = exchange.amount
+	slot2.sprite = exchange.sprite
+	slot2.object = exchange.object
+	--slot2.stack = exchange.stack
 end
+-- inventory/management.lua << --
+
+
+-- >> inventory/graphics.lua --
 stackDisplay = function(self, xOffset, yOffset, displaySprite)
-    local _itemDisplay = itemDisplay
+    local _slotDisplay = slotDisplay
     
     if displaySprite then
         if self.sprite and self.sprite[1] then
@@ -3372,7 +3774,7 @@ stackDisplay = function(self, xOffset, yOffset, displaySprite)
 
     
     for i=1, #self.slot do
-        _itemDisplay(self.slot[i], self.owner, xOffset or 0, yOffset or 0)
+        _slotDisplay(self.slot[i], self.owner, xOffset or 0, yOffset or 0)
     end
     
     self.displaying = true
@@ -3382,7 +3784,7 @@ end
 
 stackHide = function(self)
     if not self then return end
-    local _itemHide = itemHide
+    local _slotHide = slotHide
 
     if self.sprite[3] then
         _tfm_exec_removeImage(self.sprite[3])
@@ -3390,7 +3792,7 @@ stackHide = function(self)
     end
     
     for i=1, #self.slot do
-        _itemHide(self.slot[i], self.owner)
+        _slotHide(self.slot[i], self.owner)
     end
     
     self.displaying = false
@@ -3402,9 +3804,15 @@ stackRefresh = function(self, xOffset, yOffset, displaySprite)
     stackHide(self)
     stackDisplay(self, xOffset, yOffset, displaySprite)
 end
+-- inventory/graphics.lua << --
+
+-- inventory/main.lua << --
+
 
 -- ==========	WORLDHANDLE	========== --
 
+
+-- >> worldHandle/main.lua --
 worldRefreshChunks = function()
 	local _chunkDeactivate, chunkList = chunkDeactivate, map.chunk
 	for i=1, #chunkList do
@@ -3694,9 +4102,13 @@ worldExplosion = function(x, y, radius, power, cause)
 	
 end
 
+-- worldHandle/main.lua << --
+
 
 -- ==========	EVENTS	========== --
 
+
+-- >> events/main.lua --
 onEvent("LoadFinished", function()
 	modulo.loading = false
   
@@ -3710,6 +4122,8 @@ onEvent("LoadFinished", function()
 end)
 
 
+
+-- >> events/Loop.lua --
 local _os_time = os.time
 local tt
 onEvent("Loop", function(elapsed, remaining)
@@ -3839,7 +4253,11 @@ onEvent("Loop", function(elapsed, remaining)
 		end
 	end
 end)
+-- events/Loop.lua << --
 
+
+
+-- >> events/Controls.lua --
 onEvent("Mouse", function(playerName, x, y)
 	local Player = room.player[playerName]
 	if timer > awaitTime and Player then
@@ -3861,7 +4279,7 @@ onEvent("Mouse", function(playerName, x, y)
 					if block.id ~= 0 then
 						playerDestroyBlock(Player, x, y)
 					else
-						Player.inventory.selectedSlot:onHit(x, y)
+						Player.inventory.selectedSlot.object:onHit(x, y)
 					end
 				end
 			end
@@ -3900,19 +4318,19 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			
 			-- Don't use Z / Q / S / D / W / A 
 			if key == 46 or key == 88 then -- delete/x
-				local item = Player.inventory.selectedSlot
-				if item then itemRemove(item, playerName) end
+				local slot = Player.inventory.selectedSlot
+				if slot then slotEmpty(slot, playerName) end
 			elseif key == 76 then -- L
-				local item = Player.inventory.selectedSlot
-				playerInventoryExtract(Player, item.itemId, 1, item.stack, item)
+				local slot = Player.inventory.selectedSlot
+				playerInventoryExtract(Player, slot.itemId, 1, slot.stack, slot)
 				local offset = 0
 				if Player.inventory.displaying then
-					if item.stack == "invbar" then
+					if slot.stack == "invbar" then
 						offset = -36
 					end
 				end
 				
-				itemRefresh(item, Player.name, 0, offset)
+				slotRefresh(slot, Player.name, 0, offset)
 			elseif key == 69 then -- E
                 if os.time() > Player.inventory.timestamp then
                     if Player.inventory.displaying then
@@ -3949,12 +4367,16 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			end
 			
 			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
-				local slot = key - (key <= 57 and 48 or 96)
-				playerChangeSlot(Player, "invbar", slot, (not Player.onWindow))
+				local slotNum = key - (key <= 57 and 48 or 96)
+				playerChangeSlot(Player, "invbar", slotNum, (not Player.onWindow))
 			end
 			
 			if key == 16 or key == 17 then
 				local scale = 1.5
+				if Player.withinRange then
+					tfm.exec.removeImage(Player.withinRange)
+				end
+				
 				Player.withinRange = _tfm_exec_addImage(
 					"1809609266a.png", "$"..playerName,
 					0, 0,
@@ -3997,6 +4419,8 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 		end
 	end
 end)
+-- events/Controls.lua << --
+
 
 onEvent("PlayerDied", function(playerName, override)
 	local Player = room.player[playerName]
@@ -4126,6 +4550,8 @@ onEvent("ChatCommand", function(playerName, command)
 	end
 end)
 
+
+-- >> events/Inventory.lua --
 onEvent("SlotSelected", function(Player, newSlot)
 --[[    local oldSlot = Player.inventory.selectedSlot
     
@@ -4133,7 +4559,11 @@ onEvent("SlotSelected", function(Player, newSlot)
     local oldstack, newstack = oldSlot.stack, newSlot.stack
     if Player.inventory[newstack].del then]]
 end)
+-- events/Inventory.lua << --
 
+
+
+-- >> events/TextAreaCallback.lua --
 onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 	if textAreaId == 0 then
 		uiDisplayDefined(eventName, playerName)
@@ -4184,7 +4614,7 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 			local origin = Player.inventory.selectedSlot
 			if origin then
 				select, newSlot = playerMoveItem(Player, origin, select, true)
-				playerHudInteract(Player, eventName, select)
+				playerHudInteract(Player, select)
 			end
 		end
 		
@@ -4196,7 +4626,11 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 		playerChangeSlot(Player, newSlot.stack, newSlot, true)
 	end
 end)
+-- events/TextAreaCallback.lua << --
 
+
+
+-- >> events/WindowCallback.lua --
 onEvent("WindowCallback", function(windowId, playerName, eventName)
     if eventName == "close" then
         uiRemoveWindow(windowId, playerName)
@@ -4242,6 +4676,8 @@ onEvent("WindowHide", function(windowId, playerName, windowObject)
 	end
 	
 end)
+-- events/WindowCallback.lua << --
+
 
 onEvent("PopupAnswer", function(popupId, playerName, answer)
 	return nil
@@ -4312,9 +4748,13 @@ onEvent("NewGame", function()
 		error("New map loaded.")
 	end
 end)
+-- events/main.lua << --
+
 
 -- ==========	MAIN	========== --
 
+
+-- >> main/main.lua --
 local main = function()	
   do
     ui.addTextArea(999,
@@ -4338,31 +4778,51 @@ local main = function()
     ui.setMapName(modulo.name) 
   end
   
-	for i=0, 512 do
+	for i=0, 1024 do
 		if not objectMetadata[i] then objectMetadata[i] = {} end
-		local _ref = objectMetadata[i] 
-		objectMetadata[i] = {
-			name = _ref.name or "Null",
-			drop = _ref.drop or 0,
-			durability = _ref.durability or 18,
-			glow = _ref.glow or 0,
-			translucent = _ref.translucent or false,
-			sprite = _ref.sprite or "17e1315385d.png",
-			particles = _ref.particles or {},
-			interact = _ref.interact or false,
+		local _ref = unreference(objectMetadata[i] or {}) 
+		local obj = objectMetadata[i] or {}
+		
+		obj.name = _ref.name or "Null"
+		obj.drop = _ref.drop or 0
+		
+		obj.glow = _ref.glow or 0
+
+		
+		if i < 512 then
+			obj.sprite = _ref.sprite or "17e1315385d.png"
+			obj.durability = _ref.durability or 32
 			
-			handle = _ref.handle,
+			obj.translucent = _ref.translucent or false
 			
-			onCreate = _ref.onCreate or dummyFunc,
-			onPlacement = _ref.onPlacement or dummyFunc,
-			onDestroy = _ref.onDestroy or dummyFunc,
-			onInteract = _ref.onInteract or dummyFunc,
-			onHit = _ref.onHit or dummyFunc,
-			onDamage = _ref.onDamage or dummyFunc,
-			onContact = _ref.onContact or dummyFunc,
-			onUpdate = _ref.onUpdate or dummyFunc,
-			onAwait = _ref.onAwait or dummyFunc
-		}
+			obj.onCreate = _ref.onCreate or dummyFunc
+			obj.onPlacement = _ref.onPlacement or dummyFunc
+			obj.onDestroy = _ref.onDestroy or dummyFunc
+			obj.onContact = _ref.onContact or dummyFunc
+			obj.placeable = true
+		else
+			obj.sprite = _ref.sprite or "180c452d106.png"
+			
+			obj.durability = _ref.durability or 0
+			obj.degradable = _ref.degradable or false
+			obj.ftype = obj.ftype or {[0]=1.0}
+			
+			obj.sharpness = _ref.sharpness or 0
+			obj.strenght = _ref.strenght or 0
+			obj.placeable = false
+		end
+		obj.particles = _ref.particles or {1}
+		obj.interact = _ref.interact or false
+			
+		obj.handle = _ref.handle
+			
+		obj.onInteract = _ref.onInteract or dummyFunc
+		obj.onHit = _ref.onHit or dummyFunc
+		obj.onDamage = _ref.onDamage or dummyFunc
+		
+		obj.onUpdate = _ref.onUpdate or dummyFunc
+		obj.onAwait = _ref.onAwait or dummyFunc
+		obj.hardness = _ref.hardness or 0
 	end
 	
 	do
@@ -4388,14 +4848,27 @@ local main = function()
 	math.randomseed(map.seed)
 	local heightMaps = {}
 	
+	local amplitude, waveLength, surfaceStart, heightMid
 	for i=1, 7 do
+		if i == 1 then
+			amplitude = 30
+			waveLength = 24
+			surfaceStart = 64
+			heightMid = 128
+		else
+			amplitude = 20
+			waveLength = 12
+			surfaceStart = 60 - ((i - 1) * 20)
+			heightMid = 140 - ((i - 1) * 20)
+		end
+		
 		heightMaps[i] = generatePerlinHeightMap(
 			nil, -- Seed
-			i==1 and 30 or 20, -- Amplitude
-			i==1 and 24 or 12, -- Wave Length
-			i==1 and 64 or 60-((i-1)*20), -- Surface Start
+			amplitude, -- Amplitude
+			waveLength, -- Wave Length
+			surfaceStart, -- Surface Start
 			1020, -- Width
-			i==1 and 128 or 140-((i-1)*20)
+			heightMid
 		)
 		map.heightMaps[i] = heightMaps[i]
 	end
@@ -4404,6 +4877,8 @@ local main = function()
 	tfm.exec.newGame(xmlLoad)
 end
 
+
+-- >> main/resources.lua --
 
 local defTrunkDestroy = function(self, Player, norep)
 	if not self.ghost then return end
@@ -4478,10 +4953,21 @@ stackPresets = {
 		output = 5,
 		
 		callback = function(self, playerObject)
-			local item, itemList = stackFetchCraft(playerObject.inventory.craft, 4)
-			local _i = playerObject.inventory.craft
-			if item and itemList then
-				return itemCreate(_i.slot[#_i.slot], item[1], item[2], true), itemList
+			local stackObject = playerObject.inventory.craft
+			
+			if stackObject then
+				local result = stackFetchCraft(stackObject)
+				if result then
+					local retval = slotFill(
+						stackObject.slot[#stackObject.slot], 
+						result[1], result[2],
+						true
+					)
+					
+					slotRefresh(stackObject.slot[#stackObject.slot], playerObject.name)
+					
+					return retval
+				end
 			end
 		end,
 		
@@ -4514,14 +5000,18 @@ stackPresets = {
 		callback = function(self, playerObject, blockObject)
 			local stackObject = playerObject.inventory[self.stack]
 			if stackObject then
-				local item, itemList = stackFetchCraft(stackObject, 9)
+				local result = stackFetchCraft(stackObject)
 
-				if item and itemList then
-					return itemCreate(
+				if result then
+					local retval = slotFill(
 						stackObject.slot[#stackObject.slot], 
-						item[1], item[2],
+						result[1], result[2],
 						true
-					), itemList
+					)
+					
+					slotRefresh(stackObject.slot[#stackObject.slot], playerObject.name)
+					
+					return retval
 				end
 			end
 		end,
@@ -4579,7 +5069,7 @@ stackPresets = {
 	}
 }
 
-objectMetadata = {
+objectMetadata = {}
 --[[
 [] = {
 		name = "",
@@ -4591,16 +5081,20 @@ objectMetadata = {
 		particles = {}
 	},
 ]]
+do
 	-- ==========		DIRT		========== --
-	[1] = {
+	objectMetadata[1] = {
 		name = "Dirt",
 		drop = 1,
 		durability = 14,
 		glow = 0,
 		translucent = false,
+		hardness = 0,
+		placeable = true,
 		sprite = "17dd4af277b.png",
 		interact = false,
 		particles = {21, 24, 44},
+		ftype = 2,
 		onAwait = function(self, Player, tl)
 			if self.timestamp == tl and self.type == 1 then
 				blockCreate(self, 2, self.ghost, true, Player)
@@ -4625,15 +5119,19 @@ objectMetadata = {
 		onPlacement = function(self, Player)
 			self:onUpdate(Player)
 		end
-	},
-	[2] = {
+	}
+	
+	objectMetadata[2] = {
 		name = "Grass",
 		drop = 1,
 		durability = 14,
 		glow = 0,
 		translucent = false,
+		placeable = true,
+		hardness = 0,
 		sprite = "17dd4b0a359.png",
 		interact = false,
+		ftype = 2,
 		particles = {21, 22, 44},
 		onAwait = function(self, Player, tl)
 			if self.timestamp == tl and self.type == 2 then
@@ -4656,166 +5154,225 @@ objectMetadata = {
 				self.event = nil
 			end
 		end
-	},
-	[3] = {
+	}
+	
+	objectMetadata[3] = {
 		name = "Snowed Dirt",
 		drop = 1,
 		durability = 14,
 		glow = 0,
 		translucent = false,
+		ftype = 2,
+		placeable = true,
+		hardness = 0,
 		sprite = "17dd4aedb5d.png",
 		interact = false,
 		particles = {4, 21, 44, 45}
-	},
-	[4] = {
+	}
+	
+	objectMetadata[4] = {
 		name = "Snow",
 		drop = 4,
 		durability = 8,
 		glow = 0,
 		translucent = false,
+		ftype = 2,
+		placeable = true,
+		hardness = 0,
 		sprite = "17dd4b5fb5d.png",
 		interact = false,
 		particles = {4, 45}
-	},
-	[5] = {
+	}
+	
+	objectMetadata[5] = {
 		name = "Dirtcelium",
 		drop = 1,
 		durability = 16,
 		glow = 0,
 		translucent = false,
+		placeable = true,
+		ftype = 2,
+		hardness = 0,
 		sprite = "17dd4ae8f5b.png",
 		interact = false,
 		particles = {21, 21, 32, 43}
-	},
-	[6] = {
+	}
+	
+	objectMetadata[6] = {
 		name = "Mycelium",
 		drop = 6,
 		durability = 16,
 		glow = 0,
 		translucent = false,
+		placeable = true,
+		ftype = 2,
+		hardness = 0,
 		sprite = "17dd4b1875c.png",
 		interact = false,
 		particles = {43}
-	},
+	}
+	
 	-- ==========		STONE		========== --
-	[10] = {
+	objectMetadata[10] = {
 		name = "Stone",
 		drop = 19,
 		durability = 34,
 		glow = 0,
 		translucent = false,
+		placeable = true,
+		ftype = 5,
+		hardness = 1,
 		sprite = "17dd4b6935c.png",
 		interact = false,
 		particles = {3, 4}
-	},
-	[11] = {
+	}
+	
+	objectMetadata[11] = {
 		name = "Coal Ore",
-		drop = 11,
+		drop = 520,
 		durability = 42,
 		glow = 0,
+		placeable = true,
 		translucent = false,
+		ftype = 5,
+		hardness = 1,
 		sprite = "17dd4b26b5d.png",
 		interact = false,
 		particles = {3, 4}
-	},
-	[12] = {
+	}
+	
+	objectMetadata[12] = {
 		name = "Iron Ore",
-		drop = 12,
+		drop = 521,
 		durability = 46,
 		glow = 0.2,
 		translucent = false,
+		placeable = true,
+		hardness = 2,
+		ftype = 5,
 		sprite = "17dd4b39b5c.png",
 		interact = false,
 		particles = {3, 2, 1}
-	},
-	[13] = {
+	}
+	
+	objectMetadata[13] = {
 		name = "Gold Ore",
 		drop = 13,
 		durability = 46,
 		glow = 0.4,
 		translucent = false,
+		hardness = 2,
+		ftype = 5,
 		sprite = "17dd4b34f5a.png",
 		interact = false,
 		particles = {2, 3, 11, 24}
-	},
-	[14] = {
+	}
+	
+	objectMetadata[14] = {
 		name = "Diamond Ore",
-		drop = 14,
+		drop = 522,
 		durability = 52,
 		glow = 0.8,
+		hardness = 3,
+		placeable = true,
+		ftype = 5,
 		translucent = false,
 		sprite = "17dd4b2b75d.png",
 		interact = false,
 		particles = {3, 1, 9, 23} 
-	},
-	[15] = {
+	}
+	
+	objectMetadata[15] = {
 		name = "Emerald Ore",
 		drop = 15,
 		durability = 52,
 		glow = 0.7,
 		translucent = false,
+		hardness = 3,
+		ftype = 5,
+		placeable = true,
 		sprite = "17dd4b3035f.png",
 		interact = false,
 		particles = {3, 11, 22}
-	},
-	[16] = {
+	}
+	
+	objectMetadata[16] = {
 		name = "Lazuli Ore",
 		drop = 16,
 		durability = 34,
 		glow = 0.3,
+		ftype = 5,
+		hardness = 2,
 		translucent = false,
+		placeable = true,
 		sprite = "17e46514c5d.png",
 		interact = false,
 		particles = {}
-	},
-	[19] = {
+	}
+	
+	objectMetadata[19] = {
 		name = "Cobblestone",
 		drop = 19,
 		durability = 26,
+		placeable = true,
 		glow = 0,
+		hardness = 1,
+		ftype = 5,
 		translucent = false,
 		sprite = "17dd4adf75b.png",
 		interact = false,
 		particles = {3}
-	},
+	}
+	
 	-- ==========		SAND		========== --
-	[20] = {
+	objectMetadata[20] = {
 		name = "Sand",
 		drop = 20,
 		durability = 10,
 		glow = 0,
+		ftype = 1,
+		placeable = true,
 		translucent = false,
 		sprite = "17dd4b5635b.png",
 		interact = false,
 		particles = {24}
-	},
-	[21] = {
+	}
+	
+	objectMetadata[21] = {
 		name = "Sandstone",
 		drop = 21,
 		durability = 26,
 		glow = 0,
+		ftype = 5,
 		translucent = false,
 		sprite = "17dd4b5af5c.png",
 		interact = false,
+		placeable = true,
 		particles = {3, 24, 24}
-	},
-	[25] = {
+	}
+	
+	objectMetadata[25] = {
 		name = "Cactus",
 		drop = 25,
 		durability = 10,
 		glow = 0,
+		ftype = 6,
 		translucent = false,
+		placeable = true,
 		sprite = "17e4651985c.png",
 		interact = false,
 		particles = {}
-	},
+	}
+	
 	-- ==========		UTILITIES		========== --
-	[50] = {
+	objectMetadata[50] = {
 		name = "Crafting Table",
 		drop = 50,
 		durability = 24,
 		glow = 0,
+		ftype = 4,
 		translucent = false,
+		placeable = true,
 		sprite = "17dd4ae435c.png",
 		interact = true,
 		particles = {1},
@@ -4835,188 +5392,242 @@ objectMetadata = {
                 {"bridge", 0, 0, true}}
             )
 		end
-	},
-	[51] = {
+	}
+	
+	objectMetadata[51] = {
 		name = "Oven",
 		drop = 51,
 		durability = 40,
 		glow = 0,
+		ftype = 5,
+		placeable = true,
+		hardness = 1,
 		translucent = false,
 		sprite = "17dd4b4335d.png",
 		interact = true,
 		particles = {3, 1}
-	},
-	[52] = {
+	}
+	
+	objectMetadata[52] = {
 		name = "Oven",
 		drop = 51,
 		durability = 40,
 		glow = 2,
+		ftype = 5,
+		hardness = 1,
 		translucent = false,
+		placeable = true,
 		sprite = "17dd4b3e75b.png",
 		interact = true,
 		particles = {3, 1}
-	},
+	}
 	
-	[70] = {
+	objectMetadata[70] = {
 		name = "Wood",
 		drop = 70,
 		durability = 24,
 		glow = 0,
+		placeable = true,
+		ftype = 4,
 		translucent = false,
 		sprite = "17e46510078.png",
 		interact = false,
 		particles = {}
-	},
-	[73] = {
+	}
+	
+	objectMetadata[73] = {
 		name = "Jungle Trunk",
 		drop = 73,
 		durability = 24,
 		glow = 0,
+		placeable = true,
+		ftype = 4,
 		translucent = false,
 		sprite = "17e4651e45d.png",
 		interact = false,
 		particles = {},
 		onDestroy = defTrunkDestroy
-	},
-	[74] = {
+	}
+	
+	objectMetadata[74] = {
 		name = "Jungle Leaves",
 		drop = 74,
 		durability = 4,
 		glow = 0,
+		ftype = 3,
+		placeable = true,
 		translucent = false,
 		sprite = "17e4652c85c.png",
 		interact = false,
 		particles = {}
-	},
-	[75] = {
+	}
+	
+	objectMetadata[75] = {
 		name = "Fir Trunk",
 		drop = 75,
 		durability = 24,
 		glow = 0,
+		ftype = 4,
 		translucent = false,
 		sprite = "17e46527c5e.png",
+		placeable = true,
 		interact = false,
 		particles = {},
 		onDestroy = defTrunkDestroy
-	},
-	[76] = {
+	}
+	
+	objectMetadata[76] = {
 		name = "Fir Leaves",
 		drop = 76,
 		durability = 4,
 		glow = 0,
+		ftype = 3,
+		placeable = true,
 		translucent = false,
 		sprite = "17e46501bd8.png",
 		interact = false,
 		particles = {}
-	},
-	[80] = {
+	}
+	
+	objectMetadata[80] = {
 		name = "Pumpkin",
 		drop = 80,
 		durability = 24,
 		glow = 0,
+		ftype = 4,
+		placeable = true,
 		translucent = false,
 		sprite = "17dd4b5175b.png",
 		interact = false,
 		particles = {}
-	},
-	[81] = {
+	}
+	
+	objectMetadata[81] = {
 		name = "Pumpkin Mask",
 		drop = 81,
 		durability = 20,
 		glow = 0,
+		ftype = 4,
+		placeable = true,
 		translucent = false ,
 		sprite = "17dd4b4cb5c.png",
 		interact = true,
 		particles = {}
-	},
-	[82] = {
+	}
+	
+	objectMetadata[82] = {
 		name = "Pumpkin Torch",
 		drop = 82,
 		durability = 24,
 		glow = 3.5,
+		placeable = true,
+		ftype = 4,
 		translucent = 0,
 		sprite = " 17dd4b47f5a.png",
 		interact = true,
 		particles = {}
-	},
-	[100] = {
+	}
+	
+	objectMetadata[100] = {
 		name = "Ice",
 		drop = 0,
 		durability = 6,
 		glow = 0,
+		placeable = true,
+		ftype = 7,
 		translucent = true,
 		sprite = "x0xKxfi",
 		interact = false,
 		particles = {}
-	},
-	[108] = {
+	}
+	
+	objectMetadata[108] = {
 		name = "Crystal",
 		drop = 0,
+		ftype = 7,
 		durability = 6,
+		placeable = true,
 		translucent = true,
 		sprite = "17e4652305d.png",
 		interact = false,
 		particles = {}
-	},
+	}
 	-- ==========		NETHER		========== --
-	[130] = {
+	objectMetadata[130] = {
 		name = "Netherrack",
 		drop = 130,
 		durability = 26,
 		glow = 0,
+		ftype = 5,
+		hardness = 1,
 		translucent = false,
+		placeable = true,
 		sprite = "17dd4b1d35c.png",
 		interact = false,
 		particles = {43, 44}
-	},
-	[139] = {
+	}
+	
+	objectMetadata[139] = {
 		name = "Soulsand",
-		drop = 29,
+		drop = 139,
 		durability = 20,
 		glow = 0,
+		ftype = 1,
 		translucent = false,
 		sprite = "17dd4b6475d.png",
 		interact = false,
+		placeable = true,
 		particles = {3, 43}
-	},
+	}
 	-- ==========		END		========== --
-	[170] = {
+	objectMetadata[170] = {
 		name = "Endstone",
 		drop = 170,
 		durability = 26,
 		glow = 0,
+		ftype = 5,
+		placeable = true,
+		hardness = 1,
 		translucent = false,
 		sprite = "17dd4b00b5b.png",
 		interact = false,
 		particles = {24, 32}
-	},
-	[178] = {
+	}
+	
+	objectMetadata[178] = {
 		name = "End Portal",
-		drop = 178,
+		drop = 0,
 		durability = 52,
 		glow = 0,
+		ftype = 5,
 		translucent = true,
+		placeable = true,
 		sprite = "17dd4afbf5b.png",
 		interact = true,
 		particles = {3, 22, 23, 34}
-	},
-	[179] = {
+	}
+	
+	objectMetadata[179] = {
 		name = "End Portal (activated)",
-		drop = 178,
+		drop = 0,
 		durability = 52,
 		glow = 0.7,
+		ftype = 5,
 		translucent = true,
 		sprite = "17dd4af735a.png",
 		interact = true,
+		placeable = true,
 		particles = {3, 22, 23, 34}
-	},
+	}
 
-    [192] = {
+    objectMetadata[192] = {
         name = "TNT",
         drop = 192,
         durability = 18,
         glow = 0,
+		ftype = 2,
         translucent = false,
+		placeable = true,
         sprite = "17ff03debf2.png",
         interact = true,
         particles = {},
@@ -5027,13 +5638,15 @@ objectMetadata = {
             worldExplosion(self.dx+16, self.dy+16, 3, 1.25, playerObject)
             blockDestroy(self, true, playerObject)
         end
-    },
+    }
 	-- ==========		MISC		========== --
-	[256] = {
+	objectMetadata[256] = {
 		name = "Bedrock",
 		drop = 256,
 		durability = math.huge,
 		glow = 0,
+		ftype = 0,
+		placeable = true,
 		translucent = false,
 		sprite = "17dd4adaaf0.png",
 		interact = false,
@@ -5043,9 +5656,283 @@ objectMetadata = {
 	
 	-- ===========================		 NON BLOCKS 		=========================== --
 	
+--[[
+object = {
+  name = "Name",
+  sprite = "a801url.png",
+  
+  hardness = 0 - 5,
+  ftype = { -- Efectivity against n type of block
+    [0-7] = xR
+		0: all
+		1: sands
+		2: dirts
+		3: weak obj/leaf
+		4: woods
+		5: rocks/metal
+		6: wool
+		7: glass
+  },
+
+  durability = 0-8192, -- Every click = one use
+  sharpness = 0-64, -- Against entities
+  strenght = 0-128, -- Against blocks
+
+  cooldown = 0 - 5000 ms,
+  particles = {}
+  
+}]]
+
+
+	objectMetadata[513] = {
+		name = "Stick",
+		
+		durability = 0,
+		
+		hardness = 0,
+		sharpness = 0,
+		strenght = 0,
+		
+		cooldown = 0,
+		
+		sprite = "180c2bbb255.png",
+		
+		particles = {}
+	}
 	
-}
+	objectMetadata[520] = {
+		name = "Coal",
+		sprite = "180c4521f6a.png",
+		burningPower = 8
+	}
+	
+	objectMetadata[521] = {
+		name = "Iron",
+		sprite = "180c4524911.png"
+	}
+	
+	objectMetadata[522] = {
+		name = "Diamond",
+		sprite = "180c4528cb2.png"
+	}
+	
+	objectMetadata[530] = {
+		name = "Wood Pickaxe",
+		
+		sprite = "180c2f4fb48.png",
+		hardness = 1,
+		ftype = {
+			[1] = 0.25, -- Sand
+			[2] = 0.33, -- Dirt
+			[3] = 0.75, -- Leafs/weak obj
+			[4] = 0.5, -- Wood
+			[5] = 1.0, -- Rocks/Metal
+			[6] = 0.75, -- Wool
+			[7] = 1.25 -- Glass
+		},
+		
+		durability = 680,
+		sharpness = 2.5,
+		strenght = 5,
+		
+		degradable = true,
+		
+		cooldown = 250
+		
+	}
+	
+	objectMetadata[531] = inherit(objectMetadata[530], {
+		name = "Stone Pickaxe",
+		sprite = "180c2f52e49.png",
+		hardness = 2,
+		durability = 1620,
+		sharpness = 3.5,
+		strenght = 8
+	})
+
+	objectMetadata[532] = inherit(objectMetadata[530], {
+		name = "Iron Pickaxe",
+		sprite = "180c2f55dea.png",
+		hardness = 3,
+		durability = 3240,
+		sharpness = 5,
+		strenght = 13
+	})
+
+	objectMetadata[533] = inherit(objectMetadata[532], {
+		name = "Golden Pickaxe",
+		sprite = "",
+		durability = 2430,
+		strenght = 19,
+		cooldown = 150
+	})
+
+	objectMetadata[534] = inherit(objectMetadata[530], {
+		name = "Diamond Pickaxe",
+		sprite = "180c2f58791.png",
+		hardness = 5,
+		durability = 6480,
+		sharpness = 6,
+		strenght = 28
+	})
+
+	objectMetadata[540] = {
+		name = "Wood Sword",
+		
+		sprite = "180c316cfba.png",
+		hardness = 0,
+		ftype = {
+			[1] = 0.4,
+			[2] = 0.5,
+			[3] = 3.0,
+			[4] = 1.0,
+			[5] = 0.4,
+			[6] = 2.5,
+			[7] = 1.25
+		},
+		
+		durability = 680,
+		sharpness = 4,
+		strenght = 2.5,
+		
+		degradable = true,
+		
+		cooldown = 400
+	}
+	
+	objectMetadata[541] = inherit(objectMetadata[540], {
+		name = "Stone Sword",
+		sprite = "180c31713af.png",
+		durability = 1540,
+		sharpness = 5
+	})
+
+	objectMetadata[542] = inherit(objectMetadata[540], {
+		name = "Iron Sword",
+		sprite = "180c31742ab.png",
+		durability = 3080,
+		sharpness = 6.5,
+		strenght = 3.5
+	})
+
+	objectMetadata[543] = inherit(objectMetadata[542], {
+		name = "Golden Sword",
+		sprite = "",
+		durability = 2310,
+		sharpness = 5.5,
+		cooldown = 250
+	})
+
+	objectMetadata[544] = inherit(objectMetadata[542], {
+		name = "Diamond Sword",
+		sprite = "180c317704a.png",
+		durability = 4620,
+		sharpness = 7.5,
+		strenght = 4
+	})
+
+	objectMetadata[550] = {
+		name = "Wood Axe",
+		sprite = "180c3f5790e.png",
+		
+		hardness = 0,
+		ftype = {
+			[1] = 0.75,
+			[2] = 0.9,
+			[3] = 1.25,
+			[4] = 1.75,
+			[5] = 0.5,
+			[6] = 1.0,
+			[7] = 1.0
+		},
+		
+		durability = 680,
+		sharpness = 3.5,
+		strenght = 3.5,
+		
+		degradable = true,
+		
+		cooldown = 250
+	}
+	
+	objectMetadata[551] = inherit(objectMetadata[550], {
+		name = "Stone Axe",
+		sprite = "180c3f5a161.png",
+		durability = 1620,
+		sharpness = 4.5,
+		strenght = 4.5
+	})
+
+	objectMetadata[552] = inherit(objectMetadata[550], {
+		name = "Iron Axe",
+		sprite = "180c3f5d4ed.png",
+		durability = 3240,
+		sharpness = 5.5,
+		strenght = 5.5
+	})
+
+	objectMetadata[554] = inherit(objectMetadata[550], {
+		name = "Diamond Axe",
+		sprite = "180c3f603e3.png",
+		durability = 5670,
+		sharpness = 5.5,
+		strenght = 5.5
+	})
+
+	objectMetadata[560] = {
+		name = "Wood Shovel",
+		sprite = "180c440fcfb.png",
+		hardness = 0,
+		ftype = {
+			[1] = 3.0,
+			[2] = 2.5,
+			[3] = 1.0,
+			[4] = 0.75,
+			[5] = 0.75,
+			[6] = 0.6,
+			[7] = 0.9
+		},
+		
+		durability = 680,
+		sharpness = 32.5,
+		strenght = 3.0,
+		
+		degradable = true,
+		
+		cooldown = 100
+	}
+	
+	objectMetadata[561] = inherit(objectMetadata[560], {
+		name = "Stone Shovel",
+		sprite = "180c44126f0.png",
+		durability = 1160,
+		sharpness = 3.5,
+		strenght = 4
+	})
+
+	objectMetadata[562] = inherit(objectMetadata[560], {
+		name = "Iron Shovel",
+		sprite = "180c441536c.png",
+		durability = 2320,
+		sharpness = 4.5,
+		strenght = 5
+	})
+
+	objectMetadata[564] = inherit(objectMetadata[560], {
+		name = "Diamond Shovel",
+		sprite = "180c4417d15.png",
+		durability = 4640,
+		sharpness = 5.5,
+		strenght = 6
+	})
+
+	objectMetadata[1024] = {}
+end
+-- main/resources.lua << --
+
 
 xpcall(main, errorHandler)
+-- main/main.lua << --
 
--- 13/05/2022 07:22:10 --
+
+-- 15/05/2022 12:29:09 --
