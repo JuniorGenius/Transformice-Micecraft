@@ -85,8 +85,8 @@ chunkActivate = function(self, onlyPhysics)
 			end
 			
 			self.userHandle = unreference(map.userHandle)
-			
 			self.activated = true
+			eventChunkActivated(self)
 			self.timestamp = os.time() + 4000
 			
 			map.chunksActivated = map.chunksActivated + 1
@@ -111,6 +111,7 @@ chunkDeactivate = function(self)
 			self.userHandle = unreference(map.userHandle)
 
 			self.activated = false
+			eventChunkDeactivated(self)
 			map.chunksActivated = map.chunksActivated - 1
 			return true
 		end

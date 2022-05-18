@@ -9,6 +9,7 @@ chunkLoad = function(self)
 
 		self.userHandle = unreference(map.userHandle)
 		self.loaded = true
+		eventChunkLoaded(self)
 		map.chunksLoaded = map.chunksLoaded + 1
 		return true
 	end
@@ -30,6 +31,7 @@ chunkUnload = function(self, onlyVisual)
 		self.userHandle = unreference(map.userHandle)
 		
 		self.loaded = false
+		eventChunkUnloaded(self)
 		map.chunksLoaded = map.chunksLoaded - 1
 		return true
 	end

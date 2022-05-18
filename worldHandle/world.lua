@@ -157,26 +157,11 @@ createNewWorld = function(heightMaps)
 	local _ui_updateTextArea, _tfm_exec_addImage, _tfm_exec_removeImage = ui.updateTextArea, tfm.exec.addImage, tfm.exec.removeImage
 	local _string_format = string.format
 	local chunkList = map.chunk
-	
-	local count = 0
-	
-	local bar
-	
-	local angle = math.rad(270)
-	
-	local updatePercentage = function()
-		local percentage = _math_round(count/13.60, 2)
-		_ui_updateTextArea(999, _string_format("<p align='left'><font size='16' face='Consolas' color='#ffffff'>Loading...\t<D>%f%%</D></font></p>", percentage), nil)
-		if bar then _tfm_exec_removeImage(bar) end
-		bar = _tfm_exec_addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
-		
-		count = count + 1
-	end
-	
+	modulo.count = 0
 	local point, surfp
 	for i=1, 680 do
 		chunkList[i] = _chunkNew(i, false, false, 1, heightMaps)
-		updatePercentage()
+		modulo:updatePercentage(1360, "Generating New World...")
 	end
 	
 	map.spawnPoint = getFixedSpawn()
@@ -190,10 +175,11 @@ createNewWorld = function(heightMaps)
 	
 	for i=1, 680 do
 		_chunkCalculateCollisions(chunkList[i])
-		updatePercentage()
+		modulo:updatePercentage(1360, "Generating New World...")
 	end
 	
-	_tfm_exec_removeImage(bar)
+	_tfm_exec_removeImage(modulo.bar)
+	modulo.count = 0
 
 	math.randomseed(os.time())
 end
@@ -201,23 +187,22 @@ end
 startPlayer = function(playerName, spawnPoint)
 	if not room.player[playerName] then
 		map.userHandle[playerName] = true
+		
 		room.player[playerName] = playerNew(playerName, spawnPoint)
+		local Player = room.player[playerName]
 		local _system_bindKeyboard = system.bindKeyboard
 		for k=0, 200 do
 			_system_bindKeyboard(playerName, k, false, true)
 			_system_bindKeyboard(playerName, k, true, true)
-			room.player[playerName].keys[k] = false
+			Player.keys[k] = false
 		end
 		system.bindMouse(playerName, true)
 		
 		tfm.exec.setAieMode(true, 2.5, playerName)
 		eventPlayerDied(playerName, true)
-	
-		playerDisplayInventoryBar(room.player[playerName])
-		playerChangeSlot(room.player[playerName], "invbar", 1)
 		
 		if timer > 3000 then
-			playerReachNearChunks(room.player[playerName], 1, true)
+			playerReachNearChunks(Player, 1, true)
 		end
 	end
 end
@@ -285,4 +270,20 @@ worldExplosion = function(x, y, radius, power, cause)
 	
 	tfm.exec.explosion(x, y+200, 15*power, range*32, false)
 	
+end
+
+initWorld = function()
+	room.rcount = room.rcount + 1
+	room.timestamp = os.time()
+	generateBoundGrounds()
+	tfm.exec.setGameTime(0)
+	ui.setMapName(modulo.name)
+	setWorldGravity(0, room.rcount == 1 and 0 or 10)
+	
+	for playerName, Player in next, room.player do
+		eventPlayerRespawn(playerName)
+		if not modulo.loading then
+			setUserInterface(playerName)
+		end
+	end
 end

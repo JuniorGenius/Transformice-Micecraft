@@ -2,12 +2,19 @@ onEvent("LoadFinished", function()
 	modulo.loading = false
   
 	ui.removeTextArea(999, nil)
+	ui.removeTextArea(1001, nil)
 	for _, img in next, modulo.loadImg[2] do
 		tfm.exec.removeImage(img)
 	end
 	
+	if modulo.bar then tfm.exec.removeImage(modulo.bar) end
+	
 	setWorldGravity(0, 10)
-	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+	
+	
+	for playerName, Player in next, room.player do
+		setUserInterface(playerName)
+	end
 end)
 
 
@@ -43,16 +50,11 @@ end)
 
 onEvent("NewPlayer", function(playerName)
 	startPlayer(playerName, map.spawnPoint)
-	tfm.exec.addImage("17e464d1bd5.png", "?512", 0, 8, playerName, 32, 32, 0, 1.0, 0, 0)
 	local lang = room.player[playerName].language
-	ui.addTextArea(0,
-		("<p align='right'><font size='12' color='#ffffff' face='Consolas'><a href='event:credits'>%s</a> &lt;\n <a href='event:reports'>%s</a> &lt;\n <a href='event:controls'>%s</a> &lt;\n <a href='event:help'>%s</a> &lt;\n"):format(
-		translate("credits title", lang),
-		translate("reports title", lang),
-		translate("controls title", lang),
-		translate("help title", lang)
-	),
-	playerName, 700, 330, 100, 70, 0x000000, 0x000000, 1.0, true)
+	
+	if not modulo.loading then
+		setUserInterface(playerName)
+	end
 	generateBoundGrounds()
 	if not room.isTribe then
 		tfm.exec.lowerSyncDelay(playerName)
@@ -127,20 +129,22 @@ onEvent("PopupAnswer", function(popupId, playerName, answer)
 	end]]
 end)
 
-
 onEvent("NewGame", function()
-	if timer <= 10000 then
-		generateBoundGrounds()
-		tfm.exec.setGameTime(0)
-		ui.setMapName(modulo.name)
-		setWorldGravity(0, 0)
-		
-		for name, _ in next, tfm.get.room.playerList do
-			eventNewPlayer(name)
-			eventPlayerRespawn(name)
+	if os.time() >= room.timestamp + 3000 then
+		if room.rcount <= 5 then
+			if room.rcount > 0 then
+				tfm.exec.chatMessage(("<b><R>WARNING !</R> <CEP>Illegal map load detected. Please do not load maps. (%d/5)</CEP></b>"):format(room.rcount))
+				appendEvent(3500, false, function(xml)
+					tfm.exec.newGame(xml)
+					initWorld()
+				end, xmlLoad)	
+			else
+				initWorld()
+			end
+		else
+			error("New map loaded.")
 		end
-	else
-		--appendEvent(3100, tfm.exec.newGame, xmlLoad)
-		error("New map loaded.")
 	end
 end)
+
+require("Chunk")

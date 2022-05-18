@@ -255,26 +255,30 @@ playerHudInteract = function(self, select)
 	local output = source.slot[source.output]
 	
 	local result, ores, sres
-	--[[if output and origin.id == output.id then
-		ores = origin:callback(self, blockObject)
-	else]]
+	if output and origin.id == output.id then
+		local subject = self.inventory[origin.stack].slot[1]
+		
+		if subject then
+			ores = subject:callback(self, blockObject)
+		end
+	else
 		sres = select:callback(self, blockObject)
-	--end
+	end
 	
 	result = sres or ores
-	
-	printt({origin, select, output}, {"object", "sprite"})
 	
 	if result then
 		if output then
 			if origin.id == output.id then
 				if select.id ~= origin.id then
-					for id, slot in next, source do
-						if not slot.output then
+					for id, slot in next, source.slot do
+						if id < #source.slot then
 							playerInventoryExtract(self,
 								slot.itemId, 1,
 								source, slot
 							)
+							
+							slotRefresh(slot, self.name, 0, 0)
 						end
 					end
 				else

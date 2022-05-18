@@ -98,6 +98,8 @@ do
 	newBuild:write(build)
 	newBuild:close()
 	
+	print("Build written.")
+	
 	local exec, loadres = load('require("tfmenv")\n' .. build)-- .. "\n eventNewGame(); eventLoop()")
 	if exec then
 		local ok, result = pcall(exec)

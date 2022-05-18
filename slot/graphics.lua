@@ -4,8 +4,11 @@ slotDisplay = function(self, playerName, xOffset, yOffset)
 	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
 	
 	local scale = self.size / 32
-	local dx = self.dx + (xOffset or 0) + (8*scale)
-	local dy = self.dy + (yOffset or 0) + (8*scale)
+	local div = self.itemId < 512 and 1.8823 or 1.17647
+	local doff = math.floor(4.251 * div)
+	local dsp = self.itemId < 512 and 0 or 3
+	local dx = self.dx + (xOffset or 0) + (doff*scale)
+	local dy = self.dy + (yOffset or 0) + (doff*scale)
 
 	local _ui_addTextArea, _ui_removeTextArea = ui.addTextArea, ui.removeTextArea
 	
@@ -13,9 +16,9 @@ slotDisplay = function(self, playerName, xOffset, yOffset)
 		self.sprite[2] = tfm.exec.addImage(
 			self.sprite[1],
 			"~"..(self.id+100),
-			dx, dy,
+			dx-dsp, dy-dsp,
 			playerName,
-			scale/1.8823, scale/1.8823,
+			scale/div, scale/div,
 			0, 1.0,
 			0, 0
 		)

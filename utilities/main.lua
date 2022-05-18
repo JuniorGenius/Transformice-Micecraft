@@ -287,12 +287,26 @@ inherit = function(tbl, ex)
 	return obj
 end
 
-appendEvent = function(executionTime, callback, ...)
+appendEvent = function(executionTime, loop, callback, ...)
 	local exec = os.time() + executionTime
+	
+	local args = {...}
+	printt({executionTime, loop, callback})
+	
+	if loop then
+		local recall = function(time, execute, ...)
+			execute(...)
+			appendEvent(time, true, execute, ...)
+		end
+		
+		table.insert(args, 1, executionTime)
+		table.insert(args, 2, callback)
+		callback = recall
+	end
 	
 	actionsCount = actionsCount + 1
 	actionsHandle[#actionsHandle + 1] = {
-		exec, callback, {...}, actionsCount
+		exec, callback, args, actionsCount
 	}
 	
 	return actionsCount

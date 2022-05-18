@@ -14,8 +14,12 @@ itemDealBlockDamage = function(self, Block)
             
 			if self.strenght ~= 0 then
 				local ft = Block.ftype
-				local multiplier = self.ftype[ft] or self.ftype[0] or 1.0
-				damage = self.strenght * multiplier
+				
+				local multiplier = 1.0
+				if type(self.ftype) == "table" then
+					multiplier = self.ftype[ft] or self.ftype[0] or 1.0
+				end
+				damage = (self.strenght or 1) * multiplier
 			end
 			
 			if self.degradable then
@@ -27,6 +31,10 @@ itemDealBlockDamage = function(self, Block)
             if self.hardness >= Block.hardness then
                 drop = Block.drop
             end
+		else
+			if Block.hardness == 0 then
+				drop = Block.drop
+			end
 		end
 
         local destroyed = blockDamage(Block, damage)
@@ -37,7 +45,6 @@ itemDealBlockDamage = function(self, Block)
     
     return drop
 end
-
 itemDealEntityDamage = function(self, Entity)
     local damage = 2
     local Perpetrator = room.player[self.owner]

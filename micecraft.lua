@@ -32,7 +32,9 @@ local room = {
 	setMode = string.match(tfm.get.room.name, "micecraft%A+([_%a]+)"),
 	runtimeMax = 0,
 	language = tfm.get.room.language,
-	player = {}
+	player = {},
+	rcount = 0,
+	timestamp = 0
 }
 
 local modulo = {
@@ -49,10 +51,27 @@ local modulo = {
 	runtimeMax = 0,
 	runtimeLimit = 0,
 	maxPlayers = 5,
+	count = 0,
+	updatePercentage = function(self, limit, text)
+		local percentage = self.count/(limit/100)
+		ui.updateTextArea(999, string.format("<p align='left'><font size='16' face='Consolas' color='#ffffff'>%s\t<D>%0.2f%%</D></font></p>", text or "", math.ceil(percentage*100)/100))
+		
+		if self.bar then
+			tfm.exec.removeImage(self.bar)
+		end
+		self.bar = tfm.exec.addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, (34/limit)*self.count, math.rad(270), 1.0, 0, 0)
+		self.count = self.count + 1
+	end,
 	timeout = false,
 	apiVersion = "0.28",
-	tfmVersion = "7.99",
-	lastest = "15/05/2022 12:29:09"
+	tfmVersion = "7.96 - 8",
+	lastest = "18/05/2022 12:29:06"
+}
+
+local admin = {
+	[modulo.creator] = true,
+	["Pshy#3752"] = true,
+	["Undermath#2907"] = true
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -95,6 +114,7 @@ local map = {
 	}]]
 }
 
+local commandList = {}
 local uiHandle = {}
 local uiResources = {}--[[
 element = {
@@ -142,6 +162,7 @@ onEvent = function(eventName, callback)
 end
 
 errorHandler = function(err, eventName, instance)
+	err = err:gsub("\t", "")
 	warning(("[event%s (#%d)] %s"):format(eventName or "null", instance or 0, err or "null"))
 	tfm.exec.addImage("17f94a1608c.png", "~42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 	tfm.exec.addImage("17f949fcbb4.png", "~43", 70, 120, nil, 1.0, 1.0, 0, 1.0, 0, 0)
@@ -169,7 +190,6 @@ errorHandler = function(err, eventName, instance)
 			end
 			timer = 0
 			evt[1] = function(elapsed, remaining)
-				timer = timer + 500
 				local lim = 120
 				if timer < lim*1000 then
 					ui.setMapName(
@@ -302,6 +322,7 @@ local 	playerNew,
 		playerInventoryExtract,
 		playerMoveItem,
 		playerHudInteract,
+		inWorldBounds,
 		playerPlaceObject,
 		playerDestroyBlock,
 		playerInitTrade,
@@ -355,7 +376,11 @@ local 	worldRefreshChunks,
 		generateBoundGrounds,
 		createNewWorld,
 		startPlayer,
-		worldExplosion
+		worldExplosion,
+		initWorld,
+		withinRange,
+		commandHandle,
+		setUserInterface
 
 
 
@@ -729,12 +754,26 @@ inherit = function(tbl, ex)
 	return obj
 end
 
-appendEvent = function(executionTime, callback, ...)
+appendEvent = function(executionTime, loop, callback, ...)
 	local exec = os.time() + executionTime
+	
+	local args = {...}
+	printt({executionTime, loop, callback})
+	
+	if loop then
+		local recall = function(time, execute, ...)
+			execute(...)
+			appendEvent(time, true, execute, ...)
+		end
+		
+		table.insert(args, 1, executionTime)
+		table.insert(args, 2, callback)
+		callback = recall
+	end
 	
 	actionsCount = actionsCount + 1
 	actionsHandle[#actionsHandle + 1] = {
-		exec, callback, {...}, actionsCount
+		exec, callback, args, actionsCount
 	}
 	
 	return actionsCount
@@ -1699,12 +1738,20 @@ blockDamage = function(self, amount, playerObject)
 	if self.type ~= 0 and map.chunk[self.chunk].loaded then
 		local meta = objectMetadata[self.type]
 		
-		self.damage = self.damage + (amount or 2)
-		if self.damage > self.durability then self.damage = self.durability end
+		local fxdamage = self.damage + (amount or 2)
+		if fxdamage > self.durability then
+			self.damage = self.durability
+		else
+			self.damage = fxdamage
+		end
+		
 		self.damagePhase = math.ceil((self.damage*10)/self.durability)
 		self.sprite[1][4] = damageSprites[self.damagePhase]
-		if self.damage >= meta.durability then
+		
+		if fxdamage >= self.durability then
+			local dmg = fxdamage - self.durability
 			blockDestroy(self, true, playerObject)
+			blockDamage(self, dmg, playerObject)
 			return true
 		else
 			if map.chunk[self.chunk].loaded then
@@ -1712,8 +1759,18 @@ blockDamage = function(self, amount, playerObject)
 				blockDisplay(self)
 			end
 			
-			if self.damage > 0 then 
-				appendEvent(5000, blockRepair, self, 1, playerObject)
+			if self.damage > 0 then
+				if not self.event or self.event == 0 then
+					self.event = appendEvent(5000, true,
+					function(Block, rep, Player)
+						if Block.damage > 0 then
+							blockRepair(Block, rep, Player)
+						else
+							removeEvent(Block.event)
+							Block.event = 0
+						end
+					end, self, 1, playerObject)
+				end
 			end
 			
 			self:onDamage(playerObject)
@@ -1963,6 +2020,7 @@ chunkLoad = function(self)
 
 		self.userHandle = unreference(map.userHandle)
 		self.loaded = true
+		eventChunkLoaded(self)
 		map.chunksLoaded = map.chunksLoaded + 1
 		return true
 	end
@@ -1984,6 +2042,7 @@ chunkUnload = function(self, onlyVisual)
 		self.userHandle = unreference(map.userHandle)
 		
 		self.loaded = false
+		eventChunkUnloaded(self)
 		map.chunksLoaded = map.chunksLoaded - 1
 		return true
 	end
@@ -2088,8 +2147,8 @@ chunkActivate = function(self, onlyPhysics)
 			end
 			
 			self.userHandle = unreference(map.userHandle)
-			
 			self.activated = true
+			eventChunkActivated(self)
 			self.timestamp = os.time() + 4000
 			
 			map.chunksActivated = map.chunksActivated + 1
@@ -2114,6 +2173,7 @@ chunkDeactivate = function(self)
 			self.userHandle = unreference(map.userHandle)
 
 			self.activated = false
+			eventChunkDeactivated(self)
 			map.chunksActivated = map.chunksActivated - 1
 			return true
 		end
@@ -2238,8 +2298,12 @@ itemDealBlockDamage = function(self, Block)
             
 			if self.strenght ~= 0 then
 				local ft = Block.ftype
-				local multiplier = self.ftype[ft] or self.ftype[0] or 1.0
-				damage = self.strenght * multiplier
+				
+				local multiplier = 1.0
+				if type(self.ftype) == "table" then
+					multiplier = self.ftype[ft] or self.ftype[0] or 1.0
+				end
+				damage = (self.strenght or 1) * multiplier
 			end
 			
 			if self.degradable then
@@ -2251,6 +2315,10 @@ itemDealBlockDamage = function(self, Block)
             if self.hardness >= Block.hardness then
                 drop = Block.drop
             end
+		else
+			if Block.hardness == 0 then
+				drop = Block.drop
+			end
 		end
 
         local destroyed = blockDamage(Block, damage)
@@ -2261,7 +2329,6 @@ itemDealBlockDamage = function(self, Block)
     
     return drop
 end
-
 itemDealEntityDamage = function(self, Entity)
     local damage = 2
     local Perpetrator = room.player[self.owner]
@@ -2662,26 +2729,30 @@ playerHudInteract = function(self, select)
 	local output = source.slot[source.output]
 	
 	local result, ores, sres
-	--[[if output and origin.id == output.id then
-		ores = origin:callback(self, blockObject)
-	else]]
+	if output and origin.id == output.id then
+		local subject = self.inventory[origin.stack].slot[1]
+		
+		if subject then
+			ores = subject:callback(self, blockObject)
+		end
+	else
 		sres = select:callback(self, blockObject)
-	--end
+	end
 	
 	result = sres or ores
-	
-	printt({origin, select, output}, {"object", "sprite"})
 	
 	if result then
 		if output then
 			if origin.id == output.id then
 				if select.id ~= origin.id then
-					for id, slot in next, source do
-						if not slot.output then
+					for id, slot in next, source.slot do
+						if id < #source.slot then
 							playerInventoryExtract(self,
 								slot.itemId, 1,
 								source, slot
 							)
+							
+							slotRefresh(slot, self.name, 0, 0)
 						end
 					end
 				else
@@ -2703,8 +2774,12 @@ end
 
 
 -- >> player/interactions.lua --
+inWorldBounds = function(x, y)
+	return(x >= 0 and x < 32640) and (y >= 200 and y < 8392)
+end
+
 playerPlaceObject = function(self, x, y, ghost)
-	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
+	if inWorldBounds(x, y) then
 		local slot = self.inventory.selectedSlot
 		if not slot then return end
 		
@@ -2892,8 +2967,19 @@ playerActualizeHoldingItem = function(self)
 	if self.inventory.barActive then
 		local select = self.inventory.selectedSlot
 		if select.itemId ~= 0 then
+			local scale = select.itemId < 512 and 0.5 or 0.85
+			local xoffset = 5 / scale -- 10 / 5.8823
+			local yoffset = -((scale*4)^2)
 			if self.inventory.holdingSprite then tfm.exec.removeImage(self.inventory.holdingSprite) end
-			self.inventory.holdingSprite = tfm.exec.addImage(objectMetadata[select.itemId].sprite, "$"..self.name, self.facingRight and 10 or -10, -4, nil, self.facingRight and 0.5 or -0.5, 0.5, 0, 1.0, 0, 0)
+			self.inventory.holdingSprite = tfm.exec.addImage(
+				objectMetadata[select.itemId].sprite,
+				"$"..self.name,
+				self.facingRight and xoffset or -xoffset, yoffset,
+				nil,
+				self.facingRight and scale or -scale, scale,
+				0, 1.0,
+				0, 0
+			)
 		else
 			if self.inventory.holdingSprite then
 				tfm.exec.removeImage(self.inventory.holdingSprite)
@@ -3299,8 +3385,11 @@ slotDisplay = function(self, playerName, xOffset, yOffset)
 	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
 	
 	local scale = self.size / 32
-	local dx = self.dx + (xOffset or 0) + (8*scale)
-	local dy = self.dy + (yOffset or 0) + (8*scale)
+	local div = self.itemId < 512 and 1.8823 or 1.17647
+	local doff = math.floor(4.251 * div)
+	local dsp = self.itemId < 512 and 0 or 3
+	local dx = self.dx + (xOffset or 0) + (doff*scale)
+	local dy = self.dy + (yOffset or 0) + (doff*scale)
 
 	local _ui_addTextArea, _ui_removeTextArea = ui.addTextArea, ui.removeTextArea
 	
@@ -3308,9 +3397,9 @@ slotDisplay = function(self, playerName, xOffset, yOffset)
 		self.sprite[2] = tfm.exec.addImage(
 			self.sprite[1],
 			"~"..(self.id+100),
-			dx, dy,
+			dx-dsp, dy-dsp,
 			playerName,
-			scale/1.8823, scale/1.8823,
+			scale/div, scale/div,
 			0, 1.0,
 			0, 0
 		)
@@ -3813,6 +3902,8 @@ end
 
 
 -- >> worldHandle/main.lua --
+
+-- >> worldHandle/world.lua --
 worldRefreshChunks = function()
 	local _chunkDeactivate, chunkList = chunkDeactivate, map.chunk
 	for i=1, #chunkList do
@@ -3972,26 +4063,11 @@ createNewWorld = function(heightMaps)
 	local _ui_updateTextArea, _tfm_exec_addImage, _tfm_exec_removeImage = ui.updateTextArea, tfm.exec.addImage, tfm.exec.removeImage
 	local _string_format = string.format
 	local chunkList = map.chunk
-	
-	local count = 0
-	
-	local bar
-	
-	local angle = math.rad(270)
-	
-	local updatePercentage = function()
-		local percentage = _math_round(count/13.60, 2)
-		_ui_updateTextArea(999, _string_format("<p align='left'><font size='16' face='Consolas' color='#ffffff'>Loading...\t<D>%f%%</D></font></p>", percentage), nil)
-		if bar then _tfm_exec_removeImage(bar) end
-		bar = _tfm_exec_addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, 0.025*count,--[[0.015625*count, 0.5,]] angle, 1.0, 0.0, 0.0)
-		
-		count = count + 1
-	end
-	
+	modulo.count = 0
 	local point, surfp
 	for i=1, 680 do
 		chunkList[i] = _chunkNew(i, false, false, 1, heightMaps)
-		updatePercentage()
+		modulo:updatePercentage(1360, "Generating New World...")
 	end
 	
 	map.spawnPoint = getFixedSpawn()
@@ -4005,10 +4081,11 @@ createNewWorld = function(heightMaps)
 	
 	for i=1, 680 do
 		_chunkCalculateCollisions(chunkList[i])
-		updatePercentage()
+		modulo:updatePercentage(1360, "Generating New World...")
 	end
 	
-	_tfm_exec_removeImage(bar)
+	_tfm_exec_removeImage(modulo.bar)
+	modulo.count = 0
 
 	math.randomseed(os.time())
 end
@@ -4016,23 +4093,22 @@ end
 startPlayer = function(playerName, spawnPoint)
 	if not room.player[playerName] then
 		map.userHandle[playerName] = true
+		
 		room.player[playerName] = playerNew(playerName, spawnPoint)
+		local Player = room.player[playerName]
 		local _system_bindKeyboard = system.bindKeyboard
 		for k=0, 200 do
 			_system_bindKeyboard(playerName, k, false, true)
 			_system_bindKeyboard(playerName, k, true, true)
-			room.player[playerName].keys[k] = false
+			Player.keys[k] = false
 		end
 		system.bindMouse(playerName, true)
 		
 		tfm.exec.setAieMode(true, 2.5, playerName)
 		eventPlayerDied(playerName, true)
-	
-		playerDisplayInventoryBar(room.player[playerName])
-		playerChangeSlot(room.player[playerName], "invbar", 1)
 		
 		if timer > 3000 then
-			playerReachNearChunks(room.player[playerName], 1, true)
+			playerReachNearChunks(Player, 1, true)
 		end
 	end
 end
@@ -4102,6 +4178,236 @@ worldExplosion = function(x, y, radius, power, cause)
 	
 end
 
+initWorld = function()
+	room.rcount = room.rcount + 1
+	room.timestamp = os.time()
+	generateBoundGrounds()
+	tfm.exec.setGameTime(0)
+	ui.setMapName(modulo.name)
+	setWorldGravity(0, room.rcount == 1 and 0 or 10)
+	
+	for playerName, Player in next, room.player do
+		eventPlayerRespawn(playerName)
+		if not modulo.loading then
+			setUserInterface(playerName)
+		end
+	end
+end
+
+-- worldHandle/world.lua << --
+
+
+
+-- >> worldHandle/management.lua --
+withinRange = function(a, b)
+    return  (a >= 0 and a <= 32640) and (b >= 200 and b <= 8392)
+end
+
+commandList = {}
+
+do
+    commandList["lang"] = function(playerName, langcode, targetPlayer)
+        if not Text[langcode] then
+            langcode = "xx"
+        end
+		
+		if admin[playerName] then
+			targetPlayer = targetPlayer or playerName
+		else
+			targetPlayer = playerName
+		end
+        
+        local Player = room.player[targetPlayer]
+        if Player then
+            Player.language = langcode
+        end
+    end
+    commandList["language"] = commandList["lang"]
+    commandList["idioma"] = commandList["lang"]
+    
+    
+    commandList["seed"] = function(playerName)
+        tfm.exec.chatMessage("<CEP><u>World's seed:</u></CEP> <D>" .. map.seed .. "</D>", playerName)
+    end
+    commandList["worldseed"] = commandList["seed"]
+    commandList["semilla"] = commandList["seed"]
+    
+    commandList["tp"] = function(playerName, x, y, z)
+        if not admin[playerName] then return end
+        
+        local pa, pb
+        
+        local Player = room.player[playerName]
+        
+        local tx, ty, tz = type(x), type(y), type(z)
+        if x and y then
+            if tx == "string" and ty == "string" then
+                local Target1 = room.player[x]
+                local Target2 = room.player[y]
+                
+                if Target1 and Target2 then
+                    playerName = x
+                    pa, pb = Target2.x, Target2.y
+                end
+            elseif ty == "number" then
+                if tx == "number" then
+                    pa, pb = x, y
+                else
+                    local Target = room.player[x]
+                    if type(z) == "number" then
+                        if Target then
+                            playerName = x
+                            pa, pb = y, z
+                        end
+                    end
+                end
+            end
+        elseif x and not y then
+            if tx == "string" then
+                local Target = room.player[x]
+                
+                if Player and Target then
+                    pa, pb = Target.x, Target.y
+                end
+            end
+        end
+        
+        if pa and pb then
+            if withinRange(pa, pb) then
+               _movePlayer(playerName, pa, pb) 
+            end
+        end
+    end
+    commandList["teleport"] = commandList["tp"]
+    
+    commandList["debug"] = function(playerName, targetPlayer)
+        if not admin[playerName] then return end
+        
+        local Player = room.player[targetPlayer] or room.player[playerName]
+        
+        printt(Player, {"keys", "slot", "interaction"})
+    end
+    
+    commandList["stackFill"] = function(playerName, itemId, amount, targetPlayer, targetStack)
+        if not admin[playerName] then return end
+        local Player = room.player[targetPlayer] or room.player[playerName]
+        
+        if Player then
+            local Stack = Player.inventory[targetStack] or Player.inventory.invbar
+            
+            if Stack then
+                itemId = tonumber(itemId)
+                
+                if itemId then
+                    stackFill(
+                        Stack,
+                        itemId,
+                        tonumber(amount) or 64
+                    )
+                    
+					if Stack.displaying then
+						local offset = 0
+						if Stack.identifier == "invbar" then
+							if Player.inventory.barActive then
+								offset = 0
+							else
+								offset = -36
+							end
+						end
+						
+						stackRefresh(Stack, 0, offset, true)
+					end
+                end
+            end
+        end
+    end
+	
+	commandList["np"] = function(playerName, map)
+		if not admin[playerName] then
+			return
+		else
+			tfm.exec.chatMessage("Warning! You're loading a map. Please only do it for testing purposes. Map will be loaded in 3 seconds.", playerName)
+			
+			appendEvent(3000, false, function(np)
+				tfm.exec.newGame(np)
+			end, map)
+		end
+	end
+	
+	commandList["map"] = commandList["np"]
+	
+	commandList["lua"] = function(playerName, dir, ...)
+		if not admin[playerName] then return end
+		
+		local obj = _G
+		
+		for index in dir:gmatch("[^.]+") do
+			if type(obj) == "table" then
+				obj = obj[index]
+			end
+		end
+		
+		if obj then
+			local ok, result = pcall(obj, ...)
+			
+			if result then
+				tfm.exec.chatMessage(dump(result), playerName)
+			end
+		end
+	end
+end
+-- Command list on main/commands
+commandHandle = function(message, playerName)
+	local args = {}
+	for arg in message:gmatch("%S+") do
+		args[#args+1] = tonumber(arg) or arg
+	end
+	
+	local command = table.remove(args, 1)
+	
+	local execute = commandList[command]
+	if execute then
+		local ok, result = pcall(execute, playerName, table.unpack(args))
+		
+		if not ok then
+			for adm, _ in next, admin do
+				tfm.exec.chatMessage(result, adm)
+			end
+			print(result)
+			
+			return false
+		else
+			return result
+		end
+	end
+end
+
+setUserInterface = function(playerName)
+	local Player = room.player[playerName]
+	local lang = Player.language
+	ui.addTextArea(0,
+		("<p align='right'><font size='12' color='#ffffff' face='Consolas'><a href='event:credits'>%s</a> &lt;\n <a href='event:reports'>%s</a> &lt;\n <a href='event:controls'>%s</a> &lt;\n <a href='event:help'>%s</a> &lt;\n"):format(
+		translate("credits title", lang),
+		translate("reports title", lang),
+		translate("controls title", lang),
+		translate("help title", lang)
+	),
+	playerName, 700, 330, 100, 70, 0x000000, 0x000000, 1.0, true)
+
+	if Player then
+		playerDisplayInventoryBar(Player)
+		playerChangeSlot(Player, "invbar", 1)
+		
+		do
+			if Player.background then
+				_tfm_exec_removeImage(Player.background)
+			end
+			Player.background = _tfm_exec_addImage("17e464d1bd5.png", "?512", 0, 8, playerName, 32, 32, 0, 1.0, 0, 0)
+		end
+	end
+end
+-- worldHandle/management.lua << --
+
 -- worldHandle/main.lua << --
 
 
@@ -4113,12 +4419,19 @@ onEvent("LoadFinished", function()
 	modulo.loading = false
   
 	ui.removeTextArea(999, nil)
+	ui.removeTextArea(1001, nil)
 	for _, img in next, modulo.loadImg[2] do
 		tfm.exec.removeImage(img)
 	end
 	
+	if modulo.bar then tfm.exec.removeImage(modulo.bar) end
+	
 	setWorldGravity(0, 10)
-	--ui.addTextArea(777, "", nil, 0, 25, 300, 100, 0x000000, 0x000000, 1.0, true)
+	
+	
+	for playerName, Player in next, room.player do
+		setUserInterface(playerName)
+	end
 end)
 
 
@@ -4128,18 +4441,11 @@ local _os_time = os.time
 local tt
 onEvent("Loop", function(elapsed, remaining)
 	if modulo.loading then
-		if timer == 0 then
-			tfm.exec.removeImage(modulo.loadImg[2][3])
-			ui.addTextArea(999,
-				"", nil,
-				50, 200,
-				700, 0,
-				0x000000,
-				0x000000,
-				1.0, true
-			)
+		if timer <= 500 then
+			--tfm.exec.removeImage(modulo.loadImg[2][3])
+			ui.addTextArea(1001, "", nil, 50, 200, 700, 0, 0x000000, 0x000000, 1.0, true)
 		elseif timer <= awaitTime then
-			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
+			ui.updateTextArea(1001, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
 		else
 			eventLoadFinished()
 		end
@@ -4450,16 +4756,11 @@ end)
 
 onEvent("NewPlayer", function(playerName)
 	startPlayer(playerName, map.spawnPoint)
-	tfm.exec.addImage("17e464d1bd5.png", "?512", 0, 8, playerName, 32, 32, 0, 1.0, 0, 0)
 	local lang = room.player[playerName].language
-	ui.addTextArea(0,
-		("<p align='right'><font size='12' color='#ffffff' face='Consolas'><a href='event:credits'>%s</a> &lt;\n <a href='event:reports'>%s</a> &lt;\n <a href='event:controls'>%s</a> &lt;\n <a href='event:help'>%s</a> &lt;\n"):format(
-		translate("credits title", lang),
-		translate("reports title", lang),
-		translate("controls title", lang),
-		translate("help title", lang)
-	),
-	playerName, 700, 330, 100, 70, 0x000000, 0x000000, 1.0, true)
+	
+	if not modulo.loading then
+		setUserInterface(playerName)
+	end
 	generateBoundGrounds()
 	if not room.isTribe then
 		tfm.exec.lowerSyncDelay(playerName)
@@ -4471,83 +4772,9 @@ onEvent("PlayerLeft", function(playerName)
 	map.userHandle[playerName] = nil
 end)
 
-onEvent("ChatCommand", function(playerName, command)
-	local args = {}
-	
-	for arg in command:gmatch("%S+") do
-		args[#args+1] = arg
-	end
-	command = args[1]
-	
-	uiDisplayDefined(args[1], playerName)
 
-	if command == "lang" or command == "language" then
-		room.player[playerName].language = args[2] or "xx"
-	elseif args[1] == "seed" then
-		ui.addPopup(169, 0, string.format("<p align='center'>World's seed:\n%d", map.seed), playerName, 300, 180, 200, true)
-	elseif args[1] == "tp" then
-		if room.isTribe or playerName == modulo.creator then
-			local pa = tonumber(args[2])
-			local pb = tonumber(args[3])
-			
-			local withinRange = function(a, b) return (a >= 0 and a <= 32640) and (b >= 0 and b <= 8392) end
-			
-			if pa and pb then
-				if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
-			elseif not pa or not pb then
-				local pl = room.player[ args[2] ]
-				local tgt = room.player[args[3]]
-				if pl then
-					if pl.isAlive then
-						if tgt then
-							playerName = pl.name
-							pa = tgt.x
-							pb = tgt.y
-						else
-							pa = pl.x
-							pb = pl.y
-						end
-						if withinRange(pa, pb) then _movePlayer(playerName, pa, pb) end
-					end
-				end
-			end
-		end
-	elseif args[1] == "debug" then
-		local player = room.player[args[2]]
-		
-		if player then printt(player, {"keys", "slot", "interaction"}) end
-	elseif args[1] == "announce" or args[1] == "chatannounce" then
-		if playerName == modulo.creator then
-			local _output = "<CEP><b>[Room Announcement]</b></CEP> <D>"
-			for i=2, #args do
-				_output = _output .. args[i] .. " "
-			end
-			_output = _output .. "</D>"
-      
-			if args[1] == "chatannounce" then
-				tfm.exec.chatMessage(_output, nil)
-			else
-				ui.addTextArea(42069, "<a href='event:clear'><p align='center'>" .. _output, nil, 100, 50, 600, 300, 0x010101, 0x010101, 0.4, true)
-			end
-		end
-	elseif args[1] == "stackFill" then
-		local player = room.player[args[4] or playerName]
-		if playerName == modulo.creator then
-			stackFill(player.inventory.invbar, tonumber(args[2]), tonumber(args[3]) or 64)
-			stackRefresh(player.inventory.invbar, 0, player.inventory.barActive and 0 or -36, player.inventory.barActive)
-		end
-	elseif args[1] == "disable" and playerName == modulo.creator then
-		if room.player[args[2]] then
-			room.player[args[2]]= nil
-			tfm.exec.killPlayer(args[2])
-		end
-	elseif args[1] == "enable" and playerName == modulo.creator then
-		if not room.player[args[2]] then
-			room.player[args[2]] = playerNew(args[2], map.spawnPoint)
-			ui.removeTextArea(42069, args[2])
-			tfm.exec.respawnPlayer(args[2])
-		end
-	end
+onEvent("ChatCommand", function(playerName, command)
+	commandHandle(command, playerName)
 end)
 
 
@@ -4632,7 +4859,11 @@ end)
 
 -- >> events/WindowCallback.lua --
 onEvent("WindowCallback", function(windowId, playerName, eventName)
-    if eventName == "close" then
+    if not (windowId and playerName and eventName) then
+		return
+	end
+	
+	if eventName == "close" then
         uiRemoveWindow(windowId, playerName)
     end
     
@@ -4731,23 +4962,45 @@ onEvent("PopupAnswer", function(popupId, playerName, answer)
 	end]]
 end)
 
-
 onEvent("NewGame", function()
-	if timer <= 10000 then
-		generateBoundGrounds()
-		tfm.exec.setGameTime(0)
-		ui.setMapName(modulo.name)
-		setWorldGravity(0, 0)
-		
-		for name, _ in next, tfm.get.room.playerList do
-			eventNewPlayer(name)
-			eventPlayerRespawn(name)
+	if os.time() >= room.timestamp + 3000 then
+		if room.rcount <= 5 then
+			if room.rcount > 0 then
+				tfm.exec.chatMessage(("<b><R>WARNING !</R> <CEP>Illegal map load detected. Please do not load maps. (%d/5)</CEP></b>"):format(room.rcount))
+				appendEvent(3500, false, function(xml)
+					tfm.exec.newGame(xml)
+					initWorld()
+				end, xmlLoad)	
+			else
+				initWorld()
+			end
+		else
+			error("New map loaded.")
 		end
-	else
-		--appendEvent(3100, tfm.exec.newGame, xmlLoad)
-		error("New map loaded.")
 	end
 end)
+
+
+-- >> events/Chunk.lua --
+onEvent("ChunkActivated", function(Chunk)
+    
+end)
+
+onEvent("ChunkDeactivated", function(Chunk)
+    
+end)
+
+onEvent("ChunkLoaded", function(Chunk)
+    if modulo.loading then
+        modulo:updatePercentage(23, "Loading...")
+    end
+end)
+
+onEvent("ChunkUnloaded", function(Chunk)
+    
+end)
+-- events/Chunk.lua << --
+
 -- events/main.lua << --
 
 
@@ -4755,6 +5008,12 @@ end)
 
 
 -- >> main/main.lua --
+
+-- >> main/commands.lua --
+
+-- main/commands.lua << --
+
+
 local main = function()	
   do
     ui.addTextArea(999,
@@ -4788,6 +5047,17 @@ local main = function()
 		
 		obj.glow = _ref.glow or 0
 
+		if _ref.sprite and _ref.sprite ~= "" then
+			tfm.exec.removeImage(
+				tfm.exec.addImage(_ref.sprite, "?1",
+					-32, -32,
+					nil,
+					1.0, 1.0,
+					0.0, 1.0,
+					0.0, 0.0
+				)
+			)
+		end
 		
 		if i < 512 then
 			obj.sprite = _ref.sprite or "17e1315385d.png"
@@ -4874,6 +5144,10 @@ local main = function()
 	end
 	createNewWorld(heightMaps) -- newMap
 	
+	for name, _ in next, tfm.get.room.playerList do
+		eventNewPlayer(name)
+	end
+	
 	tfm.exec.newGame(xmlLoad)
 end
 
@@ -4901,7 +5175,7 @@ local defTrunkDestroy = function(self, Player, norep)
 				if block.type == leavetype then
 					block.timestamp = self.timestamp
 					appendEvent(
-						math.random(15,75)*1000,
+						math.random(15,75)*1000, false,
 						function(self, lt, pl)
 							if self.timestamp == lt then
 								blockDestroy(self, true, pl)
@@ -5104,7 +5378,7 @@ do
 			local block = getPosBlock(self.dx + 16, self.dy - 216)
 			if block.type == 0 then
 				self.event = appendEvent(
-					math.random(7000, 10000), 
+					math.random(7000, 10000), false,
 					self.onAwait, 
 					self, Player, (self.timestamp)
 				)
@@ -5142,7 +5416,7 @@ do
 			local block = getPosBlock(self.dx + 16, self.dy - 216)
 			if block.type ~= 0 then
 				self.event = appendEvent(
-					math.random(3000, 5000),
+					math.random(3000, 5000), false,
 					self.onAwait,
 					self, Player, (self.timestamp)
 				)
@@ -5523,7 +5797,7 @@ do
 		placeable = true,
 		ftype = 4,
 		translucent = 0,
-		sprite = " 17dd4b47f5a.png",
+		sprite = "17dd4b47f5a.png",
 		interact = true,
 		particles = {}
 	}
@@ -5536,7 +5810,7 @@ do
 		placeable = true,
 		ftype = 7,
 		translucent = true,
-		sprite = "x0xKxfi",
+		--sprite = "x0xKxfi",
 		interact = false,
 		particles = {}
 	}
@@ -5632,7 +5906,7 @@ do
         interact = true,
         particles = {},
         onInteract = function(self, ...)
-            appendEvent(3000, self.onAwait, self, ...)
+            appendEvent(3000, false, self.onAwait, self, ...)
         end,
         onAwait = function(self, playerObject)
             worldExplosion(self.dx+16, self.dy+16, 3, 1.25, playerObject)
@@ -5935,4 +6209,4 @@ xpcall(main, errorHandler)
 -- main/main.lua << --
 
 
--- 15/05/2022 12:29:09 --
+-- 18/05/2022 12:29:06 --

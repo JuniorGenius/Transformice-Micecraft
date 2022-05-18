@@ -23,7 +23,9 @@ local room = {
 	setMode = string.match(tfm.get.room.name, "micecraft%A+([_%a]+)"),
 	runtimeMax = 0,
 	language = tfm.get.room.language,
-	player = {}
+	player = {},
+	rcount = 0,
+	timestamp = 0
 }
 
 local modulo = {
@@ -40,10 +42,27 @@ local modulo = {
 	runtimeMax = 0,
 	runtimeLimit = 0,
 	maxPlayers = 5,
+	count = 0,
+	updatePercentage = function(self, limit, text)
+		local percentage = self.count/(limit/100)
+		ui.updateTextArea(999, string.format("<p align='left'><font size='16' face='Consolas' color='#ffffff'>%s\t<D>%0.2f%%</D></font></p>", text or "", math.ceil(percentage*100)/100))
+		
+		if self.bar then
+			tfm.exec.removeImage(self.bar)
+		end
+		self.bar = tfm.exec.addImage("17d441f9c0f.png", "~1", 60, 375, nil, 1.1, (34/limit)*self.count, math.rad(270), 1.0, 0, 0)
+		self.count = self.count + 1
+	end,
 	timeout = false,
 	apiVersion = "0.28",
-	tfmVersion = "7.99",
+	tfmVersion = "7.96 - 8",
 	lastest = "--@lastest"
+}
+
+local admin = {
+	[modulo.creator] = true,
+	["Pshy#3752"] = true,
+	["Undermath#2907"] = true
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
@@ -134,6 +153,7 @@ onEvent = function(eventName, callback)
 end
 
 errorHandler = function(err, eventName, instance)
+	err = err:gsub("\t", "")
 	warning(("[event%s (#%d)] %s"):format(eventName or "null", instance or 0, err or "null"))
 	tfm.exec.addImage("17f94a1608c.png", "~42", 0, 0, nil, 1.0, 1.0, 0, 1.0, 0, 0)
 	tfm.exec.addImage("17f949fcbb4.png", "~43", 70, 120, nil, 1.0, 1.0, 0, 1.0, 0, 0)
@@ -161,7 +181,6 @@ errorHandler = function(err, eventName, instance)
 			end
 			timer = 0
 			evt[1] = function(elapsed, remaining)
-				timer = timer + 500
 				local lim = 120
 				if timer < lim*1000 then
 					ui.setMapName(

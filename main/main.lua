@@ -1,3 +1,5 @@
+require("commands")
+
 local main = function()	
   do
     ui.addTextArea(999,
@@ -21,31 +23,62 @@ local main = function()
     ui.setMapName(modulo.name) 
   end
   
-	for i=0, 512 do
+	for i=0, 1024 do
 		if not objectMetadata[i] then objectMetadata[i] = {} end
-		local _ref = objectMetadata[i] 
-		objectMetadata[i] = {
-			name = _ref.name or "Null",
-			drop = _ref.drop or 0,
-			durability = _ref.durability or 18,
-			glow = _ref.glow or 0,
-			translucent = _ref.translucent or false,
-			sprite = _ref.sprite or "17e1315385d.png",
-			particles = _ref.particles or {},
-			interact = _ref.interact or false,
+		local _ref = unreference(objectMetadata[i] or {}) 
+		local obj = objectMetadata[i] or {}
+		
+		obj.name = _ref.name or "Null"
+		obj.drop = _ref.drop or 0
+		
+		obj.glow = _ref.glow or 0
+
+		if _ref.sprite and _ref.sprite ~= "" then
+			tfm.exec.removeImage(
+				tfm.exec.addImage(_ref.sprite, "?1",
+					-32, -32,
+					nil,
+					1.0, 1.0,
+					0.0, 1.0,
+					0.0, 0.0
+				)
+			)
+		end
+		
+		if i < 512 then
+			obj.sprite = _ref.sprite or "17e1315385d.png"
+			obj.durability = _ref.durability or 32
 			
-			handle = _ref.handle,
+			obj.translucent = _ref.translucent or false
 			
-			onCreate = _ref.onCreate or dummyFunc,
-			onPlacement = _ref.onPlacement or dummyFunc,
-			onDestroy = _ref.onDestroy or dummyFunc,
-			onInteract = _ref.onInteract or dummyFunc,
-			onHit = _ref.onHit or dummyFunc,
-			onDamage = _ref.onDamage or dummyFunc,
-			onContact = _ref.onContact or dummyFunc,
-			onUpdate = _ref.onUpdate or dummyFunc,
-			onAwait = _ref.onAwait or dummyFunc
-		}
+			obj.onCreate = _ref.onCreate or dummyFunc
+			obj.onPlacement = _ref.onPlacement or dummyFunc
+			obj.onDestroy = _ref.onDestroy or dummyFunc
+			obj.onContact = _ref.onContact or dummyFunc
+			obj.placeable = true
+		else
+			obj.sprite = _ref.sprite or "180c452d106.png"
+			
+			obj.durability = _ref.durability or 0
+			obj.degradable = _ref.degradable or false
+			obj.ftype = obj.ftype or {[0]=1.0}
+			
+			obj.sharpness = _ref.sharpness or 0
+			obj.strenght = _ref.strenght or 0
+			obj.placeable = false
+		end
+		obj.particles = _ref.particles or {1}
+		obj.interact = _ref.interact or false
+			
+		obj.handle = _ref.handle
+			
+		obj.onInteract = _ref.onInteract or dummyFunc
+		obj.onHit = _ref.onHit or dummyFunc
+		obj.onDamage = _ref.onDamage or dummyFunc
+		
+		obj.onUpdate = _ref.onUpdate or dummyFunc
+		obj.onAwait = _ref.onAwait or dummyFunc
+		obj.hardness = _ref.hardness or 0
 	end
 	
 	do
@@ -71,18 +104,35 @@ local main = function()
 	math.randomseed(map.seed)
 	local heightMaps = {}
 	
+	local amplitude, waveLength, surfaceStart, heightMid
 	for i=1, 7 do
+		if i == 1 then
+			amplitude = 30
+			waveLength = 24
+			surfaceStart = 64
+			heightMid = 128
+		else
+			amplitude = 20
+			waveLength = 12
+			surfaceStart = 60 - ((i - 1) * 20)
+			heightMid = 140 - ((i - 1) * 20)
+		end
+		
 		heightMaps[i] = generatePerlinHeightMap(
 			nil, -- Seed
-			i==1 and 30 or 20, -- Amplitude
-			i==1 and 24 or 12, -- Wave Length
-			i==1 and 64 or 60-((i-1)*20), -- Surface Start
+			amplitude, -- Amplitude
+			waveLength, -- Wave Length
+			surfaceStart, -- Surface Start
 			1020, -- Width
-			i==1 and 128 or 140-((i-1)*20)
+			heightMid
 		)
 		map.heightMaps[i] = heightMaps[i]
 	end
 	createNewWorld(heightMaps) -- newMap
+	
+	for name, _ in next, tfm.get.room.playerList do
+		eventNewPlayer(name)
+	end
 	
 	tfm.exec.newGame(xmlLoad)
 end

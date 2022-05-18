@@ -2,18 +2,11 @@ local _os_time = os.time
 local tt
 onEvent("Loop", function(elapsed, remaining)
 	if modulo.loading then
-		if timer == 0 then
-			tfm.exec.removeImage(modulo.loadImg[2][3])
-			ui.addTextArea(999,
-				"", nil,
-				50, 200,
-				700, 0,
-				0x000000,
-				0x000000,
-				1.0, true
-			)
+		if timer <= 500 then
+			--tfm.exec.removeImage(modulo.loadImg[2][3])
+			ui.addTextArea(1001, "", nil, 50, 200, 700, 0, 0x000000, 0x000000, 1.0, true)
 		elseif timer <= awaitTime then
-			ui.updateTextArea(999, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
+			ui.updateTextArea(1001, string.format("<font size='48'><p align='center'><D><font face='Wingdings'>6</font>\n%s</D></p></font>", ({'.', '..', '...'})[((timer/500)%3)+1]), nil) -- Finishing
 		else
 			eventLoadFinished()
 		end

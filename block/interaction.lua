@@ -114,12 +114,20 @@ blockDamage = function(self, amount, playerObject)
 	if self.type ~= 0 and map.chunk[self.chunk].loaded then
 		local meta = objectMetadata[self.type]
 		
-		self.damage = self.damage + (amount or 2)
-		if self.damage > self.durability then self.damage = self.durability end
+		local fxdamage = self.damage + (amount or 2)
+		if fxdamage > self.durability then
+			self.damage = self.durability
+		else
+			self.damage = fxdamage
+		end
+		
 		self.damagePhase = math.ceil((self.damage*10)/self.durability)
 		self.sprite[1][4] = damageSprites[self.damagePhase]
-		if self.damage >= meta.durability then
+		
+		if fxdamage >= self.durability then
+			local dmg = fxdamage - self.durability
 			blockDestroy(self, true, playerObject)
+			blockDamage(self, dmg, playerObject)
 			return true
 		else
 			if map.chunk[self.chunk].loaded then
@@ -127,8 +135,18 @@ blockDamage = function(self, amount, playerObject)
 				blockDisplay(self)
 			end
 			
-			if self.damage > 0 then 
-				appendEvent(5000, blockRepair, self, 1, playerObject)
+			if self.damage > 0 then
+				if not self.event or self.event == 0 then
+					self.event = appendEvent(5000, true,
+					function(Block, rep, Player)
+						if Block.damage > 0 then
+							blockRepair(Block, rep, Player)
+						else
+							removeEvent(Block.event)
+							Block.event = 0
+						end
+					end, self, 1, playerObject)
+				end
 			end
 			
 			self:onDamage(playerObject)

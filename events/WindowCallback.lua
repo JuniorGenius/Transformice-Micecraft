@@ -1,5 +1,9 @@
 onEvent("WindowCallback", function(windowId, playerName, eventName)
-    if eventName == "close" then
+    if not (windowId and playerName and eventName) then
+		return
+	end
+	
+	if eventName == "close" then
         uiRemoveWindow(windowId, playerName)
     end
     

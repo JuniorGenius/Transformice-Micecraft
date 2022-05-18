@@ -71,8 +71,19 @@ playerActualizeHoldingItem = function(self)
 	if self.inventory.barActive then
 		local select = self.inventory.selectedSlot
 		if select.itemId ~= 0 then
+			local scale = select.itemId < 512 and 0.5 or 0.85
+			local xoffset = 5 / scale -- 10 / 5.8823
+			local yoffset = -((scale*4)^2)
 			if self.inventory.holdingSprite then tfm.exec.removeImage(self.inventory.holdingSprite) end
-			self.inventory.holdingSprite = tfm.exec.addImage(objectMetadata[select.itemId].sprite, "$"..self.name, self.facingRight and 10 or -10, -4, nil, self.facingRight and 0.5 or -0.5, 0.5, 0, 1.0, 0, 0)
+			self.inventory.holdingSprite = tfm.exec.addImage(
+				objectMetadata[select.itemId].sprite,
+				"$"..self.name,
+				self.facingRight and xoffset or -xoffset, yoffset,
+				nil,
+				self.facingRight and scale or -scale, scale,
+				0, 1.0,
+				0, 0
+			)
 		else
 			if self.inventory.holdingSprite then
 				tfm.exec.removeImage(self.inventory.holdingSprite)
