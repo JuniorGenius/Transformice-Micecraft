@@ -4,7 +4,7 @@ onEvent("LoadFinished", function()
 	ui.removeTextArea(999, nil)
 	ui.removeTextArea(1001, nil)
 	for _, img in next, modulo.loadImg[2] do
-		tfm.exec.removeImage(img)
+		tfm.exec.removeImage(img, true)
 	end
 	
 	if modulo.bar then tfm.exec.removeImage(modulo.bar) end
@@ -44,7 +44,7 @@ onEvent("PlayerRespawn", function(playerName)
 	local Player = room.player[playerName]
 	if Player then
 		_movePlayer(playerName, map.spawnPoint.x, map.spawnPoint.y, false, 0, -8)
-		playerActualizeInfo(Player, map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
+		Player:actualizeInfo(map.spawnPoint.x, map.spawnPoint.y, _, _, true, true)
 	end
 end)
 
@@ -122,8 +122,8 @@ onEvent("PopupAnswer", function(popupId, playerName, answer)
 			end
 			
 			if answer == "CANCEL" then
-				playerCancelTrade(room.player[room.player[playerName].trade.whom])
-				playerCancelTrade(room.player[playerName])
+				room.player[room.player[playerName].trade.whom]:cancelTrade()
+				Player:cancelTrade()
 			end
 		end
 	end]]

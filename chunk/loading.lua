@@ -1,9 +1,11 @@
-chunkLoad = function(self)
+
+function _Chunk:load()
 	if not self.loaded then
 		local _blockDisplay = blockDisplay
-		for i=1, 32 do
-			for j=1, 12 do
-				_blockDisplay(self.block[i][j])
+		local blockList = self.block
+		for y=1, #blockList do
+			for x=1, #blockList[1] do
+				_blockDisplay(blockList[y][x])
 			end
 		end
 
@@ -15,17 +17,18 @@ chunkLoad = function(self)
 	end
 end
 
-chunkUnload = function(self, onlyVisual)
+function _Chunk:unload(onlyVisual)
 	if self.loaded then
-		local _blockHide = blockHide 
-		for i=1, 32 do
-			for j=1, 12 do
-				_blockHide(self.block[i][j])
+		local _blockHide = blockHide
+		local blockList = self.block
+		for y=1, #blockList do
+			for x=1, #blockList[1] do
+				_blockHide(blockList[y][x])
 			end
 		end
 		
 		if self.activated and not onlyVisual then
-			chunkDeactivate(self)
+			self:deactivate()
 		end
 		
 		self.userHandle = unreference(map.userHandle)
@@ -39,9 +42,9 @@ chunkUnload = function(self, onlyVisual)
 	return false
 end
 
-chunkReload = function(self)
-	chunkUnload(self, true)
-	chunkLoad(self)
+function _Chunk:reload()
+	self:unload(true)
+	self:load()
 	
 	return true
 end

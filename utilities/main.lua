@@ -54,11 +54,50 @@ cosineInterpolate = function(a, b, x)
 	return (a*(1-f)) + (b*f)
 end
 
-generatePerlinHeightMap = function(seed, amplitude, waveLength, surfaceStart, width, heightMid)
+generateNoiseMap = function(height, width, coberture, strenght, variety)
+    local matrix = {}
+    coberture = coberture or 0.5
+	strenght = strenght or 0
+	variety = variety or {0}
+    local rand = math.random
+    for y=1, height do
+        matrix[y] = {}
+	end
+	
+	local setStrenght = function(xs, ys, factor, inst)
+		local array, cell
+		for y=-1, 1 do
+			array = matrix[y+ys]
+			if array then
+				for x=-1, 1 do
+					cell = array[x+xs]
+					if cell then
+						cell = (rand() < factor and inst or false)
+					end
+				end
+			end
+		end
+	end
+	
+	local dot
+	
+    for y=1, height do
+        for x=1, width do
+			dot = (rand() < coberture and variety[math.random(#variety)] or false)
+			if dot then
+				setStrenght(x, y, strenght, dot)
+			end
+            matrix[y][x] = dot
+        end
+    end
+    
+    return matrix
+end
+
+generatePerlinHeightMap = function(amplitude, waveLength, surfaceStart, width, heightMid)
 	local _math_random = math.random
 	local _math_floor = math.floor
 	local _cosInt = cosineInterpolate
-	if seed then math.randomseed(seed) end
 	
 	local heightMap = {}
 	local amp = amplitude or 30 -- 172
@@ -91,13 +130,16 @@ dump = function(var, nest, except)
     for _, key in next, except do
       avoid[key] = true
     end
+	
+	avoid["__index"] = true
   end
   
 	nest = nest or 1
 	if type(var) == "table" then
+		if nest > 8 then return "" end
 		local str = (nest == 1 and tostring(var):gsub("table: ", "") .. " =" or "") .. " {\n"
 		for k, v in pairs(var) do
-      local retVal = avoid[k] and "exceptionValue" or dump(v, nest+1, except)
+      local retVal = (avoid[k] or k=="__index") and "exceptionValue" or dump(v, nest+1, except)
 			local isNumber = type(k) == "number"
 			k = "<CEP>" .. k .. "</CEP>"
 			if isNumber then k = "["..k.."]" end
@@ -132,37 +174,37 @@ end
 local _math_floor = math.floor
 getPosChunk = function(x, y, passObject)
 	if x < 0 then x = 0
-	elseif x > 32640 then x = 32640 end
+	elseif x > worldPixelWidth then x = worldPixelWidth end
 	if y < 0 then y = 0
-	elseif y > 8192 then y = 8192 end
+	elseif y > worldPixelHeight then y = worldPixelHeight end
 	local _mf = _math_floor
 	
-	local yc = 85*_mf((y/32)/32)
-	local xc = _mf((x/32)/12)
+	local yc = chunkRows * _mf((y/blockSize)/chunkHeight)
+	local xc = _mf((x/blockSize)/chunkWidth)
 	local eq = yc + xc + 1
 	
 	return passObject and map.chunk[eq] or eq
 end
 
 getPosBlock = function(x, y)
-	if x < 0 then x = 1
-	elseif x > 32640 then x = 32639 end
-	if y < 0 then y = 1
-	elseif y > 8192 then y = 8191 end
+	if x < 0 then x = 0
+	elseif x > worldPixelWidth then x = worldPixelWidth end
+	if y < 0 then y = 0
+	elseif y > worldPixelHeight then y = worldPixelHeight end
 
-	local chunk = getPosChunk(x, y, true)
-	if chunk then
-		return chunk.block[1+(_math_floor(y/32)%32)][1+(_math_floor(x/32)%12)]
+	local Chunk = getPosChunk(x, y, true)
+	if Chunk then
+		return Chunk.block[1+(_math_floor(y/blockSize)%chunkHeight)][1+(_math_floor(x/blockSize)%chunkWidth)]
 	end
 end
 
 getTruePosMatrix = function(chunk, x, y)
 	local ch = chunk-1
-	return ((ch%85)*12)+(x-1), (_math_floor(ch/85)*32)+(y-1)
+	return ((ch%chunkRows)*chunkWidth)+(x-1), (_math_floor(ch/chunkRows)*chunkHeight)+(y-1)
 end
 
 spreadParticles = function(particles, amount, kind, xor, yor)
-	local particles = (type(particles) == "number" and {particles} or (particles or 0))
+	particles = (type(particles) == "number" and {particles} or (particles or 0))
 	local ax, bx, ay, by
 	if type(xor) == "table" then
 		ax = xor[1]
@@ -208,13 +250,13 @@ getBlocksAround = function(self, include, cross)
 	local blockList = {}
 	
 	local _getPosBlock = getPosBlock
-	local xp, yp = self.dx + 16, self.dy - 184
+	local xp, yp = self.dx + blockHalf, self.dy - (worldVerticalOffset - blockHalf)
 	
-	for i=-1, 1 do
-		for j=-1, 1 do
-			condition = (not cross and (true) or (j==0 or i==0))
-			if ((not (i==0 and j==0)) or include) and condition then
-				blockList[#blockList+1] = _getPosBlock(xp+(32*j), yp+(32*i))
+	for y=-1, 1 do
+		for x=-1, 1 do
+			condition = (not cross and (true) or (x==0 or y==0))
+			if ((not (y==0 and x==0)) or include) and condition then
+				blockList[#blockList+1] = _getPosBlock(xp+(blockSize*x), yp+(blockSize*y))
 			end
 		end
 	end
@@ -237,12 +279,12 @@ end
 local _tfm_exec_movePlayer = tfm.exec.movePlayer
 local _movePlayer = function(playerName, xPosition, yPosition, positionOffset, xSpeed, ySpeed, speedOffset)
 	_tfm_exec_movePlayer(playerName, xPosition, yPosition, positionOffset, xSpeed, ySpeed, speedOffset)
-	local self = room.player[playerName]
-	if self then
-		self.x = (positionOffset and self.x + xPosition or xPosition)
-		self.y = (positionOffset and self.y + yPosition or yPosition)
-		self.vx = (speedOffset and self.x + xSpeed or xSpeed)
-		self.vy = (speedOffset and self.y + ySpeed or ySpeed)
+	local Player = room.player[playerName]
+	if Player then
+		Player.x = (positionOffset and Player.x + xPosition or xPosition)
+		Player.y = (positionOffset and Player.y + yPosition or yPosition)
+		Player.vx = (speedOffset and Player.vx + xSpeed or xSpeed)
+		Player.vy = (speedOffset and Player.vy + ySpeed or ySpeed)
 	end
 end
 
@@ -291,7 +333,6 @@ appendEvent = function(executionTime, loop, callback, ...)
 	local exec = os.time() + executionTime
 	
 	local args = {...}
-	printt({executionTime, loop, callback})
 	
 	if loop then
 		local recall = function(time, execute, ...)

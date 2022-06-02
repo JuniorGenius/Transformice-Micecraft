@@ -1,23 +1,28 @@
-slotNew = function(id, itemId, stackable, amount, desc, belongsTo)
-	local self = {
-		id = id,
-		itemId = itemId or 0,
-		object = nil,
-		stackable = stackable or true,
-		amount = amount or 0,
-		sprite = {},
-		stack = belongsTo or "bridge",
-		dx = desc.dx,
-		dy = desc.dy,
-		allowInsert = desc.insert,
-		size = desc.size or 32,
-		callback = desc.callback or dummyFunc
-	}
+_Slot.new = function(id, itemId, stackable, amount, desc, belongsTo)
+	local self = setmetatable({}, _Slot)
+	
+	self.id = id
+	self.itemId = itemId or 0
+	
+	self.object = nil
+	
+	self.stackable = stackable or true
+	self.amount = amount or 0
+	
+	self.sprite = {}
+	self.dx = desc.dx
+	self.dy = desc.dy
+	self.size = desc.size or 32
+	
+	self.stack = belongsTo or "bridge"
+	self.allowInsert = desc.insert
+
+	self.callback = desc.callback or dummyFunc
 	
 	return self
 end
 
-slotFill = function(self, itemId, amount, stackable, object)
+function _Slot:fill(itemId, amount, stackable, object)
 	self.itemId = itemId
 	self.amount = amount or 1
 	self.stackable = stackable == nil and true or stackable
@@ -38,9 +43,7 @@ slotFill = function(self, itemId, amount, stackable, object)
 	return self
 end
 
-slotEmpty = function(self, playerName)
-	local item = self
-	
+function _Slot:empty(playerName)
 	self.itemId = 0
 	self.amount = 0
 	self.stackable = false
@@ -57,5 +60,5 @@ slotEmpty = function(self, playerName)
 	ui.removeTextArea(self.id+500, playerName)
 	ui.removeTextArea(self.id+650, playerName)
 	
-	return item
+	return self
 end

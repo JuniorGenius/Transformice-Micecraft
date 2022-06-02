@@ -1,44 +1,47 @@
-playerStatic = function(self, activate)
+function _Player:static(activate)
 	local playerName = self.name
 	if activate then
 		tfm.exec.setPlayerGravityScale(playerName, 0)
 		tfm.exec.freezePlayer(playerName, true, false)
 		_movePlayer(playerName, 0, 0, true, -self.vx, -self.vy, false)
-		self.static = os.time() + 4000
+		self.staticState = os.time() + 4000
 	else
 		tfm.exec.freezePlayer(playerName, false, false)
 		tfm.exec.setPlayerGravityScale(playerName, 1.0)
-		self.static = nil
+		self.staticState = nil
 	end
 end
 
-playerCorrectPosition = function(self)
-	if self.x >= 0 and self.x <= 32640 and self.y > 200 then
+function _Player:correctPosition()
+	if withinRange(self.x, self.y) then
 		if self.lastActiveChunk ~= self.currentChunk and timer > awaitTime then
 			return
-			--[[local displacement = ((self.lastActiveChunk-1)%85)
-			local side = displacement - ((self.currentChunk-1)%85)
+			--[[return
+			local displacement = ((self.lastActiveChunk-1)%chunkRows)
+			local side = displacement - ((self.currentChunk-1)%chunkRows)
 			if side ~= 0 then
-				local xpos = (displacement * 12) + (side < 0 and 12 or 1)
+				local xpos = (displacement * chunkRows) + (side < 0 and chunkRows or 1)
 				local ypos = 256 - map.heightMaps[1][xpos]
-				self.x = xpos * 32
-				self.y = (ypos * 32) + 200
-				_movePlayer(self.name, self.x, self.y, false, 0, -8)
+				self.x = xpos * blockSize
+				self.y = (ypos * blockSize) + worldVerticalOffset
+				_movePlayer(self.name, self.x, self.y, false, 0, -self.vy)
 			end]]
 		else
 			local isTangible = function(block) return (block.type ~= 0 and not block.ghost) end
 			local _getPosBlock = getPosBlock
-			if isTangible(_getPosBlock(self.x, self.y-200)) then
+			local yoff = worldVerticalOffset
+			if isTangible(_getPosBlock(self.x, self.y-yoff)) then
 				local nxj, nyj, pxj, offset
-				local xpos, ypos = self.x+0, self.y-200
+
+				local xpos, ypos = self.x+0, self.y-yoff
 
 				local i = 1
 				
 				while i < 256 do
-					offset = i*32
-					nxj = _getPosBlock(self.x-offset, self.y-200)
-					nyj = _getPosBlock(self.x, self.y-offset-200)
-					pxj = _getPosBlock(self.x+offset, self.y-200)
+					offset = i * blockSize
+					nxj = _getPosBlock(self.x-offset, self.y-yoff)
+					nyj = _getPosBlock(self.x, self.y-offset-yoff)
+					pxj = _getPosBlock(self.x+offset, self.y-yoff)
 					if not isTangible(nyj) then
 						self.y = self.y-offset
 						break
@@ -55,7 +58,7 @@ playerCorrectPosition = function(self)
 				if i >= 256 then
 					blockDestroy(_getPosBlock(xpos, ypos), self.name)
 					self.x = xpos
-					self.y = ypos + 200
+					self.y = ypos + yoff
 					i = 0
 				end
 				
@@ -67,7 +70,7 @@ playerCorrectPosition = function(self)
 	end
 end 
 
-playerActualizeHoldingItem = function(self)
+function _Player:actualizeHoldingItem()
 	if self.inventory.barActive then
 		local select = self.inventory.selectedSlot
 		if select.itemId ~= 0 then
@@ -93,7 +96,7 @@ playerActualizeHoldingItem = function(self)
 	end
 end
 
-playerUpdatePosition = function(self, x, y, vx, vy, tfmp)
+function _Player:updatePosition(x, y, vx, vy, tfmp)
 	if timer >= awaitTime then
 		self.x = x or tfmp.x
 		self.y = y or tfmp.y
@@ -103,29 +106,30 @@ playerUpdatePosition = function(self, x, y, vx, vy, tfmp)
 		_movePlayer(self.name, self.x, self.y)
 	end
 	
-	self.tx = (self.x/32) - 510
-	self.ty = 256 - ((self.y-200)/32)
+	self.tx = (self.x/blockSize) - (worldWidth / 2)
+	self.ty = worldHeight - ((self.y-worldVerticalOffset)/blockSize)
 	
 	self.vx = vx or tfmp.vx
 	self.vy = vy or tfmp.vy
 end
 
-playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
+function _Player:actualizeInfo(x, y, vx, vy, facingRight, isAlive)
 	local tfmp = tfm.get.room.playerList[self.name]
 	
-	playerUpdatePosition(self, x, y, vx, vy, tfmp)
+	self:updatePosition(x, y, vx, vy, tfmp)
 	
 	if facingRight ~= nil then
 		self.facingRight = facingRight
-		playerActualizeHoldingItem(self)
+		self:actualizeHoldingItem()
 	end
 	
 	self.isAlive = isAlive or (tfmp.isDead and false or true)
 	
 	if self.isAlive then
-		playerCorrectPosition(self)
+		self:correctPosition()
+		local yoff = worldVerticalOffset
 		
-		local realCurrentChunk = getPosChunk(self.x, self.y-200) or getPosChunk(map.spawnPoint.x, map.spawnPoint.y-200)
+		local realCurrentChunk = getPosChunk(self.x, self.y-yoff) or getPosChunk(map.spawnPoint.x, map.spawnPoint.y-yoff)
 		if realCurrentChunk ~= self.currentChunk then
 			self.lastChunk = self.currentChunk
 		end
@@ -134,18 +138,18 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 		local Chunk = map.chunk[realCurrentChunk]
 		if Chunk and Chunk.activated then
 			self.lastActiveChunk = realCurrentChunk
-			if self.static and not modulo.timeout then
-				playerStatic(self, false)
+			if self.staticState and not modulo.timeout then
+				self:static(false)
 			end
 			
 			if not Chunk.userHandle[self.name] then
 				map.handle[realCurrentChunk] = {
-					realCurrentChunk, chunkFlush
+					realCurrentChunk, "flush"
 				}
 			end
 		else
-			if not self.static then
-				playerStatic(self, true)
+			if not self.staticState then
+				self:static(true)
 			end
 		end
 		
@@ -185,40 +189,51 @@ playerActualizeInfo = function(self, x, y, vx, vy, facingRight, isAlive)
 	end
 end
 
-playerReachNearChunks = function(self, range, forced)
+function _Player:reachNearChunks(range, forced)
 	if (os.time() > self.timestamp and timer%2000 == 0) or forced then
+		range = range or 1
 		local cl, dcl, clj, dclj, Chunk, crossCondition
+		local chunkList = map.chunk
+		local chunks = #chunkList
 		if self.currentChunk and self.lastChunk then
-			for i=-1, 1 do
-				cl = self.lastChunk+(85*i)
-				dcl = self.currentChunk+(85*i)
-				for j=-2, 2 do
-					clj = cl+j
-					dclj = dcl+j
+			for y=-range, range do
+				cl = self.lastChunk + (chunkRows * y)
+				dcl = self.currentChunk + (chunkRows * y)
+				for x=-range, range do
+					clj = cl + x
+					dclj = dcl + x
 					
-					Chunk = map.chunk[dclj]
+					Chunk = chunkList[dclj]
 					
-					crossCondition = globalGrounds < 512 and (j==0 or i==0) or (--[[j==0 and ]]i==0)
+					crossCondition = globalGrounds < (groundsLimit * 0.75) and (x==0 or y==0) or (--[[x==0 and ]]y==0)
 					
 					if (Chunk and not Chunk.userHandle[self.name]) or forced then
-						local func = chunkFlush
+						local func = "flush"
 						if not Chunk.activated then
 							if not crossCondition then
-								func = chunkReload
+								func = "reload"
 							end
 						end
 						
-						if dclj >= 1 and dclj <= 680 then
+						if dclj >= 1 and dclj <= chunks then
 							map.handle[dclj] = {dclj, func}
 						end
 					else
-						if clj >= 1 and clj <= 680 then
-							if not map.handle[clj] then map.handle[clj] = {clj, chunkUnload} end
+						if clj >= 1 and clj <= chunks then
+							if not map.handle[clj] then
+								map.handle[clj] = {
+									clj,
+									"unload"
+								}
+							end
 						end
 						
-						if dclj >= 1 and dclj <= 680 then
-							if (map.handle[dclj] and (map.handle[dclj][2] == chunkLoad or map.handle[dclj][2] == chunkUnload)) or not map.handle[dclj] then
-								map.handle[dclj] = {dclj, crossCondition and chunkUpdate or chunkLoad}
+						if dclj >= 1 and dclj <= chunks then
+							if (map.handle[dclj] and (map.handle[dclj][2] == "load" or map.handle[dclj][2] == "unload")) or not map.handle[dclj] then
+								map.handle[dclj] = {
+									dclj,
+									crossCondition and "update" or "load"
+								}
 							end
 						end
 					end
@@ -230,12 +245,12 @@ playerReachNearChunks = function(self, range, forced)
 	end
 end
 
-playerLoopUpdate = function(self)
+function _Player:loopUpdate()
 	if self.isAlive then
-		playerActualizeInfo(self)
+		self:actualizeInfo()
 			
 		if modulo.loading then
-			playerReachNearChunks(self)
+			self:reachNearChunks()
 			
 			if map.chunk[self.currentChunk].activated then
 				awaitTime = -1000
@@ -246,14 +261,14 @@ playerLoopUpdate = function(self)
 			end
 		else
 			if os.time() > self.timestamp then
-				playerReachNearChunks(self)
+				self:reachNearChunks()
 			end
 		end
 	
-		if self.static and os.time() > self.static then
-			playerStatic(self, false)
+		if self.staticState and os.time() > self.staticState then
+			self:static(false)
 		end
 	end
 	
-	playerCleanAlert(self)
+	self:cleanAlert()
 end

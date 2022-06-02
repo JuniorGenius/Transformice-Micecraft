@@ -59,6 +59,6 @@ itemDealEntityDamage = function(self, Entity)
             itemCheckStatus(self)
         end
         
-        return playerDealEntityDamage(Perpetrator, Entity, damage)
+        return Perpetrator:dealEntityDamage(Entity, damage)
     end
 end

@@ -1,5 +1,9 @@
 require("commands")
 
+require("worlds")
+
+
+
 local main = function()	
   do
     ui.addTextArea(999,
@@ -35,8 +39,8 @@ local main = function()
 
 		if _ref.sprite and _ref.sprite ~= "" then
 			tfm.exec.removeImage(
-				tfm.exec.addImage(_ref.sprite, "?1",
-					-32, -32,
+				tfm.exec.addImage(_ref.sprite, ":1",
+					384, 484,
 					nil,
 					1.0, 1.0,
 					0.0, 1.0,
@@ -102,33 +106,15 @@ local main = function()
 	
 	map.seed = (os.time() or 42069777777)
 	math.randomseed(map.seed)
-	local heightMaps = {}
 	
-	local amplitude, waveLength, surfaceStart, heightMid
-	for i=1, 7 do
-		if i == 1 then
-			amplitude = 30
-			waveLength = 24
-			surfaceStart = 64
-			heightMid = 128
-		else
-			amplitude = 20
-			waveLength = 12
-			surfaceStart = 60 - ((i - 1) * 20)
-			heightMid = 140 - ((i - 1) * 20)
-		end
-		
-		heightMaps[i] = generatePerlinHeightMap(
-			nil, -- Seed
-			amplitude, -- Amplitude
-			waveLength, -- Wave Length
-			surfaceStart, -- Surface Start
-			1020, -- Width
-			heightMid
+	do
+		generateNewWorld(
+			worldHeight, worldWidth,
+			worldPresets[modulo.gameMode] or worldPresets["overworld"]
 		)
-		map.heightMaps[i] = heightMaps[i]
+		
+		createNewWorld()
 	end
-	createNewWorld(heightMaps) -- newMap
 	
 	for name, _ in next, tfm.get.room.playerList do
 		eventNewPlayer(name)

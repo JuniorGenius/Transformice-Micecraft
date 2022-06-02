@@ -1,20 +1,4 @@
---[[playerGetInventorySlot = function(self, id)
-	if id then
-		if id < 100 then
-			if id >= 1 and id <= 36 then
-				return self.inventory.bag.slot[id]
-			end
-		else
-			if id >= 101 and id <= 105 then
-				return self.inventory.craft.slot[id-100]
-			end
-		end
-	end
-	
-	return nil
-end]]
-
-playerChangeSlot = function(self, stack, slot, display)
+function _Player:changeSlot(stack, slot, display)
 	local onBar = self.inventory.barActive
 	local _stack
 	
@@ -61,15 +45,15 @@ playerChangeSlot = function(self, stack, slot, display)
 		end
 		
 		if slot.itemId ~= 0 then	
-			playerAlert(self, objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
+			self:alertMessage(objectMetadata[slot.itemId].name, 328 + (self.inventory.barActive and 0 or 32), "D", 14)
 		else
 			eventTextAreaCallback(1001, self.name, "clear")
 		end
 	end
-	playerActualizeHoldingItem(self)
+	self:actualizeHoldingItem()
 end
 
-playerDisplayInventory = function(self, list)
+function _Player:displayInventory(list)
 	local _inv = self.inventory
 	
 	self.inventory.barActive = false
@@ -83,7 +67,7 @@ playerDisplayInventory = function(self, list)
 	local height = 316
 	ui.addTextArea(888, "", self.name, 400-(width/2), 210-(height/2), width, height, 0xD1D1D1, 0x010101, 1.0, true)
 	
-	stackHide(self.inventory.invbar)
+	self.inventory.invbar:hide()
 	
 	local stack, xo, yo, stdisp
 	for _, obj in next, list do
@@ -92,47 +76,48 @@ playerDisplayInventory = function(self, list)
 		if stack.owner ~= self.name then
 			stack.owner = self.name
 		end
-		stackDisplay(stack, xo, yo, stdisp)
+		
+		stack:display(xo, yo, stdisp)
 		if stack.identifier == "bag" then
-			playerChangeSlot(self, _inv.selectedSlot.stack, _inv.selectedSlot, true)
+			self:changeSlot(_inv.selectedSlot.stack, _inv.selectedSlot, true)
 		end
 	end
 
 end
 
-playerDisplayInventoryBar = function(self)
+function _Player:displayInventoryBar()
 	self.inventory.barActive = true
-	playerHideInventory(self)
+	self:hideInventory()
 	
-	stackDisplay(self.inventory.invbar, 0, 0, true)
+	self.inventory.invbar:display(0, 0, true)
 	
 	local _inv = self.inventory
 	local slot = _inv.selectedSlot
 	if type(slot) == "table" then
-		playerChangeSlot(self, "invbar", ((slot.id-1)%9) + 1, true)
+		self:changeSlot("invbar", ((slot.id-1)%9) + 1, true)
 	end
 end
 
-playerUpdateInventoryBar = function(self)
+function _Player:updateInventoryBar()
 	local _inv = self.inventory
 	local yoff = _inv.barActive and 0 or -36
-	stackRefresh(_inv.invbar, 0, yoff, _inv.barActive)
-	playerChangeSlot(self, "invbar", ((_inv.selectedSlot.id-1)%9) + 1, true)
+	_inv.invbar:refresh(0, yoff, _inv.barActive)
+	self:changeSlot("invbar", ((_inv.selectedSlot.id-1)%9) + 1, true)
 end
 
-playerHideInventory = function(self)
-	self.inventory.displaying = false
-	local _slotEmpty = slotEmpty
-	
+function _Player:hideInventory(list)
+	list = list or {"bag", "invbar", "craft", "armor", "bridge"}
 	local Inventory = self.inventory
 	
-	stackHide(Inventory.bag)
-	stackHide(Inventory.invbar)
-	stackHide(Inventory.craft)
-	stackHide(Inventory.armor)
-	stackHide(Inventory.bridge)
+	self.inventory.displaying = false
+
+	for _, target in next, list do
+		if Inventory[target] then
+			Inventory[target]:hide()
+		end
+	end
 	
-	playerChangeSlot(self, "invbar", Inventory.selectedSlot, false)
+	self:changeSlot("invbar", Inventory.selectedSlot, false)
 	
 	ui.removeTextArea(888, self.name)
 	
@@ -140,18 +125,18 @@ playerHideInventory = function(self)
 	
 	local stack = self.inventory.craft
 	if stack.output then
-		for key, element in next, stack.slot do
+		for key, Element in next, stack.slot do
 			if key < stack.output then
-				playerInventoryInsert(self, element.itemId, element.amount, "bag", false)
+				self:inventoryInsert(Element.itemId, Element.amount, "bag", false)
 			end
-			_slotEmpty(element)
+			Element:empty()
 		end
 	end
 	
 	self.displaying = false
 end
 
-playerGetStack = function(self, targetStack, targetSlot)
+function _Player:getStack(targetStack, targetSlot)
 	local stack
 	
 	if type(targetStack) == "table" then
@@ -173,29 +158,29 @@ playerGetStack = function(self, targetStack, targetSlot)
 	return stack
 end
 
-playerInventoryInsert = function(self, itemId, amount, targetStack, targetSlot)
+function _Player:inventoryInsert(itemId, amount, targetStack, targetSlot)
 	local _inv = self.inventory
 
-	local stack, slot = playerGetStack(self, targetStack, targetSlot)
+	local stack, slot = self:getStack(targetStack, targetSlot)
 
-	local success = stackInsertItem(_inv[stack], itemId, amount, targetSlot)
+	local success = _inv[stack]:insertItem(itemId, amount, targetSlot)
 	if not success then
-		return stackInsertItem(_inv.bag, itemId, amount, targetSlot)
+		return _inv.bag:insertItem(itemId, amount, targetSlot)
 	end
 
 	return success
 end
 
-playerInventoryExtract = function(self, itemId, amount, targetStack, targetSlot)
+function _Player:inventoryExtract(itemId, amount, targetStack, targetSlot)
 	local _inv = self.inventory
-	local stack, slot = playerGetStack(self, targetStack, targetSlot)
+	local stack, slot = self:getStack(targetStack, targetSlot)
 
 	if _inv[stack] then
-		return stackExtractItem(_inv[stack], itemId, amount, targetSlot or _inv.selectedSlot)
+		return _inv[stack]:extractItem(itemId, amount, targetSlot or _inv.selectedSlot)
 	end
 end
 
-playerMoveItem = function(self, origin, select, display)
+function _Player:moveItem(origin, select, display)
 	local destinatary, pass
 	local newSlot = select
 	
@@ -213,10 +198,10 @@ playerMoveItem = function(self, origin, select, display)
 		
 		do -- Movement
 			if self.keys[17] then
-				origin, select, newSlot = slotItemMove(origin, select, 0, pass)
+				origin, select, newSlot = origin:itemMove(select, 0, pass)
 			elseif self.keys[16] then
 				local amount = (origin.id == 0 and 0 or 1)
-				origin, select, newSlot = slotItemMove(origin, select, amount, pass)
+				origin, select, newSlot = origin:itemMove(select, amount, pass)
 			end
 		end
 		
@@ -225,7 +210,7 @@ playerMoveItem = function(self, origin, select, display)
 				local onBar = destinatary.inventory.barActive
 				local onInv = select.stack == "invbar"
 				if (onInv and onBar) or not onBar then
-					slotRefresh(select, destinatary.name, 0,
+					select:refresh(destinatary.name, 0,
 						onInv and (onBar and 0 or -36) or 0
 					)
 				end
@@ -235,7 +220,7 @@ playerMoveItem = function(self, origin, select, display)
 				local onBar = self.inventory.barActive
 				local onInv = origin.stack == "invbar"
 				if (onInv and onBar) or not onBar then
-					slotRefresh(origin, self.name, 0,
+					origin:refresh(self.name, 0,
 						onInv and (onBar and 0 or -36) or 0
 					)
 				end
@@ -246,7 +231,28 @@ playerMoveItem = function(self, origin, select, display)
 	return select, newSlot
 end
 
-playerHudInteract = function(self, select)
+function _Player:fetchCraft(Slot)
+	if not Slot then return end
+	
+	local Stack = self.inventory[Slot.stack]
+	local retval
+	if Stack then
+		local result = Stack:fetchCraft()
+		local TargetSlot = Stack.slot[#Stack.slot]
+		
+		if result then
+			retval = TargetSlot:fill(result[1], result[2], true)
+		else
+			retval = TargetSlot:empty(self.name)
+		end
+		
+		TargetSlot:refresh(self.name)
+	end
+	
+	return retval
+end
+
+function _Player:hudInteract(select)
 	local origin = self.inventory.selectedSlot
 	
 	local destinity = self.inventory[select.stack]
@@ -273,26 +279,38 @@ playerHudInteract = function(self, select)
 				if select.id ~= origin.id then
 					for id, slot in next, source.slot do
 						if id < #source.slot then
-							playerInventoryExtract(self,
+							self:inventoryExtract(
 								slot.itemId, 1,
 								source, slot
 							)
 							
-							slotRefresh(slot, self.name, 0, 0)
+							slot:refresh(self.name, 0, 0)
+						else
+							self:hudInteract(output)
 						end
 					end
 				else
-					slotRefresh(output, self.name, 0, 0)
+					output:refresh(self.name, 0, 0)
 				end
 			else
-				slotRefresh(output, self.name, 0, 0)
+				output:refresh(self.name, 0, 0)
 			end
 		else
-			slotRefresh(select, self.name, 0, 0)
+			select:refresh(self.name, 0, 0)
 		end
 	else
+		local clean = function(Slot)
+			Slot:empty(self.name)
+			Slot:refresh(self.name, 0, 0)
+		end
+		
 		if output then
-			slotEmpty(output, self.name)
+			clean(output)
+		else
+			output = destinity.slot[destinity.output]
+			if output then
+				clean(output)
+			end
 		end
 	end
 end

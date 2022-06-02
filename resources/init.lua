@@ -9,10 +9,42 @@ local ui = ui
 local globalGrounds = 0
 local groundsLimit = 1024
 
+-- Definition of world's handling variables
+-- Block:
+local blockSize = 32
+local blockHalf = blockSize / 2
+
+-- Chunk:
+local chunkWidth = 17
+local chunkHeight = 17
+local chunkSize = chunkWidth*chunkHeight
+local chunkLines = 15
+local chunkRows = 60
+
+-- World:
+local worldHeight = chunkHeight * chunkLines --= 255
+local worldWidth = chunkWidth * chunkRows --= 1020
+local worldSize = worldHeight * worldWidth --= 260 100
+local worldChunks = worldSize / chunkSize
+
+local worldPixelWidth = worldWidth * blockSize
+local worldPixelHeight = worldHeight * blockSize
+
+local worldHorizontalOffset = 0
+local worldVerticalOffset = 200
+
+local worldLeftEdge = worldHorizontalOffset -- 0
+local worldRightEdge = worldLeftEdge + (worldPixelWidth) -- 32 640
+
+local worldUpperEdge = worldVerticalOffset
+local worldLowerEdge = worldUpperEdge + (worldPixelHeight)
+
+
+
 local timer = 0
 local awaitTime = 3000
 
-local xmlLoad = '<C><P Ca="" H="8392" L="32640" /><Z><S></S><D><DS X="%d" Y="%d" /></D><O /></Z></C>'
+local xmlLoad = '<C><P Ca="" H="%d" L="%d" /><Z><S></S><D><DS X="%d" Y="%d" /></D><O /></Z></C>'
 
 local dummyFunc = function(...) end
 local _ = nil
@@ -55,24 +87,22 @@ local modulo = {
 	end,
 	timeout = false,
 	apiVersion = "0.28",
-	tfmVersion = "7.96 - 8",
-	lastest = "--@lastest"
+	tfmVersion = "8.02",
+	lastest = "--@lastest",
+	gameMode = (tfm.get.room.name):match("^%p-#micecraft%A+([%a_]+)") or "overworld"
 }
 
 local admin = {
 	[modulo.creator] = true,
 	["Pshy#3752"] = true,
-	["Undermath#2907"] = true
+	["Undermath#2907"] = true,
+	["Drgenius#0000"] = true
 }
 
 modulo.runtimeMax = (room.isTribe and 40 or 60)
 modulo.runtimeLimit = modulo.runtimeMax - (room.isTribe and 8 or 15)
 
 local map = {
-	size = {
-		height = 256,
-		width = 1020
-	},
 	chunk = {},
 	
 	chunksLoaded = 0,
@@ -107,7 +137,8 @@ local map = {
 
 local commandList = {}
 local uiHandle = {}
-local uiResources = {}--[[
+local uiResources = {}
+local worldPresets = {}--[[
 element = {
     type = ,
     identifier = ,
@@ -122,6 +153,23 @@ element = {
     image = ,
     remove = ,
 }]]
+
+local _Chunk = {}
+_Chunk.__index = _Chunk
+
+local _Slot = {}
+_Slot.__index = _Slot
+
+local _Stack = {}
+_Stack.__index = _Stack
+
+local _Player = {}
+_Player.__index = _Player
+
+local withinRange = function(a, b)
+    return  (a >= worldLeftEdge and a <= worldRightEdge) and (b >= worldUpperEdge and b <= worldLowerEdge)
+end
+
 local event = {}
 local onEvent, errorHandler, warning
 
@@ -148,7 +196,13 @@ onEvent = function(eventName, callback)
 	end
 	
 	_G["event" .. eventName] = function(...)
-		if event and event[eventName] then return event[eventName][0](...) end
+		if event then
+			if event[eventName] then
+				if timer ~= "error" then
+					return event[eventName][0](...)
+				end
+			end
+		end
 	end
 end
 
@@ -175,30 +229,22 @@ errorHandler = function(err, eventName, instance)
 	)
 
 	for name, evt in next, event do
-		if name == "Loop" then
-			for _, act in next, evt do
-				act = nil
-			end
-			timer = 0
-			evt[1] = function(elapsed, remaining)
-				local lim = 120
-				if timer < lim*1000 then
-					ui.setMapName(
-						("<O>Module will <R>shut down</R> in <D>%d s<"):format(
-							math.ceil(lim-(timer/1000))
-						)
-						
-					)
-				else
-					system.exit()
-				end
-			end
-		else
-			event["PlayerDied"] = nil
-			evt = nil
+		for i=1, #evt do
+			evt[i] = dummyFunc
 		end
 	end
 	
+	timer = 0
+	onEvent("Loop", function(elapsed, remaining)
+		local lim = 120
+		if timer < lim * 1000 then
+			ui.setMapName(("<O>Module will <R>shut down</R> in <D>%d s<"):format(lim - (timer/1000)))
+		else
+			system.exit()
+		end
+		timer = timer + 500
+	end)
+
 	tfm.exec.newGame('<C><P /><Z><S><S P=",,,,,,," L="75" H="10" T="14" Y="-150" X="400" /><S L="75" P=",,,,,,," T="14" Y="-185" X="415" H="10" /><S P=",,,,,,," L="75" X="385" T="14" Y="-185" H="10" /><S P=",,,,,,," L="200" H="150" T="14" Y="-175" N="" X="400" /></S><D><DS X="400" Y="-165" /></D><O /></Z></C>')
 	tfm.exec.setWorldGravity(0, 0)
 	for playerName, playerObject in next, tfm.get.room.playerList do

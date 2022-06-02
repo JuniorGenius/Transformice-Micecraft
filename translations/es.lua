@@ -70,6 +70,12 @@ Así también, puedes contactarme por cualquier duda o pregunta y sugerencia que
         physics_destroyed = "Sistema de colisiones destruído: <CEP>Límite de objetos físicos superado:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "Fallo en la carga del mundo."
     },
+    loading = {
+        new = {
+            world = "Generando Nuevo Mundo"
+        },
+        loading = "Cargando"
+    },
     debug = {
         left = [[<b>$module$</b>
 Ticks: 549 ms

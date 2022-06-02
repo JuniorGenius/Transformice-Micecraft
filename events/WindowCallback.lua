@@ -27,9 +27,9 @@ onEvent("WindowDisplay", function(windowId, playerName, windowObject)
 		Player.windowHandle.timestamp = os.time() + Player.windowHandle.delay
 		
 		if windowObject.height < 325 then
-			playerDisplayInventoryBar(Player)
+			Player:displayInventoryBar()
 		else
-			playerHideInventory(Player)
+			Player:hideInventory()
 		end
 	end
 	
@@ -42,7 +42,7 @@ onEvent("WindowHide", function(windowId, playerName, windowObject)
 		Player.onWindow = nil
 		
 		if not Player.inventory.displaying then
-			playerDisplayInventoryBar(Player)
+			Player:displayInventoryBar()
 		end
 	end
 	

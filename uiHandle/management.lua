@@ -8,6 +8,7 @@ local textAreaNum = 0
 
 uiCreateElement = function(id, order, target, element, text, xoff, yoff, alpha)
     local lhandle = {}
+    lhandle.type = element.type
     if element.type == "image" then
         local imgTarget = (element.foreground and '&' or ':') .. (5000 + id)
         lhandle.id = _tfm_exec_addImage(
@@ -155,7 +156,9 @@ uiHideWindow = function(id, targetPlayer)
         eventWindowHide(id, targetPlayer, object)
         for key, element in next, object do
             if type(element) == "table" then
-                element.remove(element.id, targetPlayer)
+                element.remove(element.id,
+                    element.type ~= "image" and targetPlayer or false
+                )
             end
         end
     end

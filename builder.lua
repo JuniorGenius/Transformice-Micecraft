@@ -30,7 +30,7 @@ require("player")
 
 require("slot")
 
-require("inventory")
+require("stack")
 
 require("worldHandle")
 

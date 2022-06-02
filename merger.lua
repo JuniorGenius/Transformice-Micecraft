@@ -45,6 +45,14 @@ wrap = function(root, filename)
 	return filestr:gsub('require%(".-"%)', req), "success"
 end
 
+local gen = {
+	["block"] = true,
+	["worldHandle"] = true,
+	["utilities"] = true,
+	["translations"] = true,
+	["uiHandle"] = true
+}
+local COUNTER = 0
 local generatePrototype = function(wrappedFile)
 	local file = "\n\t\n\t" .. wrappedFile
 	local proto = "\nlocal "
@@ -55,13 +63,14 @@ local generatePrototype = function(wrappedFile)
 		if _prev:gsub("%s", ""):sub(-5, -1) ~= "local" then
 			table.insert(prototypes, _function)
 		end
+		COUNTER = COUNTER + 1
 	end
 
 	for i=1, #prototypes do
 		_ff = prototypes[i]
 		proto = proto .. (i==1 and "\t" or"\t\t") .. _ff .. (i ~= #prototypes and ",\n" or "\n\n\n")
 	end
-
+	
 	return proto
 end
 
@@ -80,27 +89,45 @@ do
 		error(success)
 	end
 
-	local build = "-- Micecraft --\n-- Script created by Indexinel#5948"
+	local build = "-- Micecraft --\n-- Script created by Indexinel#5948 and Pshy#3752"
 	local _fwrap, status
 	for dir in builder:gmatch('require%("(%w+)"%)') do
 		_fwrap, status = wrap(dir, "main")
 		print(string.format(" [%s] %s", status, dir))
 		build = build .. ("\n\n" .. "-- " .. string.rep("=", 10) .. '\t' .. string.upper(dir) .. '\t' .. string.rep("=", 10)) .. " --\n\n" .. _fwrap
 		
-		if dir ~= "resources" and dir ~= "main" and dir ~= "events" then 	prototypesBuild = prototypesBuild .. generatePrototype(_fwrap)
+		if gen[dir] then
+			prototypesBuild = prototypesBuild .. generatePrototype(_fwrap)
 		end
 	end
+	print(COUNTER)
+	do
+		build = build:gsub("-- @prototypes", prototypesBuild)
+		local ltime = os.date("%d/%m/%Y %H:%M:%S")
+		build = build:gsub("--@lastest", ltime) .. ("\n\n-- " .. ltime .. " --")
+		
+		local tfmtest = [[
+if not require then
+	require = function(str)
+		print(str .. " required")
+	end
+end
+
+require("tfmenv")
+]]
+		build = tfmtest .. build
+	end
 	
-	build = build:gsub("-- @prototypes", prototypesBuild)
-	local ltime = os.date("%d/%m/%Y %H:%M:%S")
-	build = build:gsub("--@lastest", ltime) .. ("\n\n-- " .. ltime .. " --")
 	local newBuild = io.open("./micecraft.lua", 'w')
 	newBuild:write(build)
 	newBuild:close()
 	
 	print("Build written.")
 	
-	local exec, loadres = load('require("tfmenv")\n' .. build)-- .. "\n eventNewGame(); eventLoop()")
+	
+
+	
+	local exec, loadres = load(build)
 	if exec then
 		local ok, result = pcall(exec)
 		if ok then

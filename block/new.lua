@@ -1,12 +1,12 @@
-blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, surfacePoint)
+blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, yr, idoffset)
 	local xp, yp = getTruePosMatrix(chunk, x, y)
-	yp = 256-yp
+	yp = worldHeight - yp
 	
 	
-	local tang = type ~= 0 and (not ghost)
+	local tang = (not ghost)
 	local meta = objectMetadata[type]
 	
-	local id = ((x-1)*32) + y
+	local id = ((x-1) * blockSize) + y
 	local block = {
 		x = xp,
 		y = yp,
@@ -14,7 +14,7 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		ry = y,
 		
 		id = id,
-		gid = ((chunk-1)*384) + id,
+		gid = idoffset + id,
 		act = tang and -1 or 0,
 		chunk = chunk,
 
@@ -33,8 +33,8 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		shadowness = (ghost and not translucent) and 0.33 or 0,
 		sprite = {},
 		alpha = 1.0,
-		dx = xp*32,
-		dy = ((256-yp)*32)+200,
+		dx = xp * blockSize,
+		dy = ((yr-1) * blockSize) + worldVerticalOffset,
 		
 		hardness = meta.hardness,
 		drop = meta.drop,
@@ -43,7 +43,7 @@ blockNew = function(x, y, type, damage, ghost, glow, translucent, mossy, chunk, 
 		event = 0,
 		
 		interact = meta.interact,
-		handle = (meta.handle),
+		handle = meta.handle,
 		
 		onInteract = meta.onInteract,
 		onDestroy = meta.onDestroy,

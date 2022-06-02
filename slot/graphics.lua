@@ -1,5 +1,5 @@
 
-slotDisplay = function(self, playerName, xOffset, yOffset)
+function _Slot:display(playerName, xOffset, yOffset)
 	-- Add to display durability of the object
 	if self.sprite[2] then tfm.exec.removeImage(self.sprite[2]) end
 	
@@ -52,7 +52,7 @@ slotDisplay = function(self, playerName, xOffset, yOffset)
 	return {dx, dy}
 end
 
-slotHide = function(self, playerName)
+function _Slot:hide(playerName)
 	if self.sprite[2] then
 		tfm.exec.removeImage(self.sprite[2])
 		self.sprite[2] = nil
@@ -64,7 +64,7 @@ slotHide = function(self, playerName)
 	_ui_removeTextArea(self.id+650, playerName)
 end
 
-slotRefresh = function(self, playerName, xOffset, yOffset)
-	slotHide(self, playerName)
-	slotDisplay(self, playerName, xOffset, yOffset)
+function _Slot:refresh(playerName, xOffset, yOffset)
+	self:hide(playerName)
+	self:display(playerName, xOffset, yOffset)
 end

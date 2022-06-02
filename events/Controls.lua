@@ -2,8 +2,9 @@ onEvent("Mouse", function(playerName, x, y)
 	local Player = room.player[playerName]
 	if timer > awaitTime and Player then
 		if Player.isAlive and os.time() > Player.mouseBind.timestamp then
-			if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-				local block = getPosBlock(x, y-200)
+			if withinRange(x, y) then
+				local yr =  y - worldVerticalOffset
+				local block = getPosBlock(x, yr)
 				local isKeyActive = Player.keys
 				if isKeyActive[18] then -- debug
 					if isKeyActive[17] then
@@ -12,12 +13,12 @@ onEvent("Mouse", function(playerName, x, y)
 						printt(block)
 					end
 				elseif isKeyActive[17] then
-					playerBlockInteract(Player, getPosBlock(x, y-200))
+					Player:blockInteract(getPosBlock(x, yr))
 				elseif isKeyActive[16] then
-					playerPlaceObject(Player, x, y, isKeyActive[32])
+					Player:placeObject(x, y, isKeyActive[32])
 				else
 					if block.id ~= 0 then
-						playerDestroyBlock(Player, x, y)
+						Player:destroyBlock(x, y)
 					else
 						Player.inventory.selectedSlot.object:onHit(x, y)
 					end
@@ -29,7 +30,7 @@ onEvent("Mouse", function(playerName, x, y)
 	end
 end)
 
-onEvent("Keyboard", function(playerName, key, down, x, y)
+onEvent("Keyboard", function(playerName, key, down, x, y, vx, vy)
 	local Player = room.player[playerName]
 	if timer > awaitTime and Player then
 		local isKeyActive = Player.keys
@@ -57,28 +58,28 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			end
 			
 			-- Don't use Z / Q / S / D / W / A 
+			local Slot = Player.inventory.selectedSlot
 			if key == 46 or key == 88 then -- delete/x
-				local slot = Player.inventory.selectedSlot
-				if slot then slotEmpty(slot, playerName) end
+				if Slot then
+					Slot:empty(playerName)
+				end
 			elseif key == 76 then -- L
-				local slot = Player.inventory.selectedSlot
-				playerInventoryExtract(Player, slot.itemId, 1, slot.stack, slot)
+				Player:inventoryExtract(Slot.itemId, 1, Slot.stack, Slot)
 				local offset = 0
 				if Player.inventory.displaying then
-					if slot.stack == "invbar" then
+					if Slot.stack == "invbar" then
 						offset = -36
 					end
 				end
 				
-				slotRefresh(slot, Player.name, 0, offset)
+				Slot:refresh(Player.name, 0, offset)
 			elseif key == 69 then -- E
                 if os.time() > Player.inventory.timestamp then
                     if Player.inventory.displaying then
-                        playerHideInventory(Player)
-                        playerDisplayInventoryBar(Player)
+                        Player:hideInventory()
+                        Player:displayInventoryBar()
                     else
-                        playerDisplayInventory(
-                            Player,
+                        Player:displayInventory(
                             {{"bag", 0, 0, true}, 
                             {"invbar", 0, -36, false}, 
                             {"craft", 0, 0, true}, 
@@ -94,8 +95,7 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 					ui.addPopup(10, 0, "<p align='center'>Tradings are disabled currently, sorry.</p>"--[[Type the name of whoever you want to trade with."]], playerName, 250, 180, 300, true)
 				end
 			elseif key == 86 then
-				local act = Player.showDebug
-				Player.showDebug = (not act)
+				Player.showDebug = (not Player.showDebug)
 				
 				if Player.showDebug then
 					ui.addTextArea(777, "", playerName, 5, 25, 150, 0, 0x000000, 0x000000, 1.0, true)
@@ -108,7 +108,7 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 			
 			if (key >= 49 and key <= 57) or (key >= 97 and key <= 105) then
 				local slotNum = key - (key <= 57 and 48 or 96)
-				playerChangeSlot(Player, "invbar", slotNum, (not Player.onWindow))
+				Player:changeSlot("invbar", slotNum, (not Player.onWindow))
 			end
 			
 			if key == 16 or key == 17 then
@@ -133,7 +133,7 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 				end
 				
 				if Player.inventory.displaying then
-					playerDisplayInventoryBar(Player)
+					Player:displayInventoryBar()
 				end
 			end
 		else -- Release
@@ -153,8 +153,8 @@ onEvent("Keyboard", function(playerName, key, down, x, y)
 				facingRight = key == 2
 			end
 			
-			if room.player[playerName].isAlive then
-				playerActualizeInfo(Player, x, y, _, _, facingRight)
+			if Player.isAlive then
+				Player:actualizeInfo(x, y, vx, vy, facingRight)
 			end
 		end
 	end

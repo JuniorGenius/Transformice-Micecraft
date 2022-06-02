@@ -1,99 +1,76 @@
-chunkNew = function(id, loaded, activated, biome, heightMaps)
-	local _math_random, _blockNew = math.random, blockNew
+function _Chunk.new(id, loaded, activated, biome)
+	local self = setmetatable({}, _Chunk)
+	local _blockNew = blockNew
 
-	local xc = ((id-1)%85)*12
-	local yc =  256-((math.floor((id-1)/85)*32)-1)
+	local xc = ((id-1) % chunkRows) * chunkWidth
+	
+	local yc = math.floor((id-1)/chunkRows) * chunkHeight
+	local nyc = (worldHeight - yc)
 
-	local self = {
-		id = id,
-		loaded = false,
-		activated = false,
-		biome = biome or 1,
-		surfacePoint = heightMaps[1][xc+6],
-		block = {},
-		interactable = {},
-		grounds = {
-			[1] = {},
-			[2] = {},
-		},
-		segments = {},
-		x = 32*xc,
-		y = 32*(256-(yc-1))+200,
-		ioff = ((id-1)*384),
-		timestamp = 0,
-		userHandle = {}
+	local ioff = (id-1) * chunkSize
+
+	self.id = id
+	self.loaded = false
+	self.activated = false
+	self.biome = biome or 1
+	self.block = {}
+	self.interactable = {}
+	self.grounds = {
+		[1] = {},
+		[2] = {}
 	}
+	self.segments = {}
+	self.x = blockSize * xc
+	self.y = (blockSize * yc) + worldVerticalOffset
+	self.ioff = ioff
+	self.timestamp = 0
+	self.userHandle = {}
 	
-	for i=1, 32 do
-		self.block[i] = {}
+	
+	for y=1, chunkHeight do
+		self.block[y] = {}
 	end
 	
-	local ghost, type, yr, xr
+	local ghost, type, yr, xr, ya
 	
-	local surfacePoint, dirtLevel, stoneLevel, oreLevel
-	local checkCaves = function(yp, xp)
-		local hm
-		for i=2, 7 do
-			hm = heightMaps[i][xp]
-			if yp <= hm and yp >= hm-3 then return true end
-		end
-		
-		return false
-	end
-	
-	for j=1, 12 do
-		xr = xc + j
-		surfacePoint = heightMaps[1][xr]
-		dirtLevel = surfacePoint-1
-		stoneLevel = surfacePoint-7
-		oreLevel = surfacePoint-18
-		
-		for i=1, 32 do
-			type = 0
-			ghost = false
-			yr = yc-i
+	local matrix = map.worldMatrix 
+	local dir
+	for x=1, chunkWidth do
+		xr = xc + x
+		for y=1, chunkHeight do
+			yr = nyc - y
+			ya = yc + y
 			
-			if yr <= surfacePoint then
-				if yr == surfacePoint then
-					type = 2
-					if yr > 172 then type = 3 end
-				elseif (yr <= dirtLevel and yr > stoneLevel) then
-					type = 1
-				elseif (yr <= stoneLevel and yr ~= 1) then
-					type = 10
-					if yr <= oreLevel then
-						if (_math_random(30) - yr/100 ) <= 2.5 then type = _math_random(11, 16) end
-					end
-				end
-			
-				ghost = checkCaves(yr, xr)
-			end
-			
+			dir = matrix[ya][xr]
+
 			if yr <= 1 then
 				type = 256
 				ghost = false
+			else
+				type = dir[1]
+				ghost = dir[2]
 			end
 			
-			self.block[i][j] = _blockNew(
-				j, -- x
-				i, -- y
+			self.block[y][x] = _blockNew(
+				x, -- x
+				y, -- y
 				type, -- type
 				0,  -- damage
 				(ghost or type == 0), -- ghost
 				false, -- glow 
 				false, -- translucent
 				false, -- mossy
-				id,
-				surfacePoint
+				id, -- chunk
+				ya,
+				ioff
 			)
 		end
-		
 	end
 	
 	return self
 end
 
-chunkCalculateCollisions = function(self)
+function _Chunk:calculateCollisions()
 	local matrix = self.block
     local height = #matrix
     local width = #matrix[1]
@@ -160,16 +137,16 @@ chunkCalculateCollisions = function(self)
         end
 		
 		if matches > 0 then
-			local _width = 32*((xend - xstr)+1)
-			local _height = 32*((yend - ystr)+1)
+			local _width = blockSize * ((xend - xstr) + 1)
+			local _height = blockSize * ((yend - ystr) + 1)
 			
 			_table_insert(self.segments, assign)
 			_table_insert(segments, assign)
 			
 			self.grounds[1][assign] = {
 				id = self.ioff + assign,
-				xPos = self.x + (32*(xstr-1)) + (_width/2),
-				yPos = self.y + (32*(ystr-1)) + (_height/2),
+				xPos = self.x + (blockSize * (xstr - 1)) + (_width / 2),
+				yPos = self.y + (blockSize * (ystr - 1)) + (_height / 2),
 				bodydef = {
 					type = 14,--14,
 					width = _width,

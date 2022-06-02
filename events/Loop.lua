@@ -39,7 +39,7 @@ onEvent("Loop", function(elapsed, remaining)
 	
 	for playerName, Player in next, room.player do
 		if Player.isAlive then
-			playerLoopUpdate(Player)
+			Player:loopUpdate(Player)
 			
 			if modulo.loading then
 				if map.chunk[Player.currentChunk].activated then
@@ -51,8 +51,8 @@ onEvent("Loop", function(elapsed, remaining)
 				end
 			end
 				
-			if Player.static and _os_time() > Player.static then
-				playerStatic(Player, false)
+			if Player.staticState and _os_time() > Player.staticState then
+				Player:static(false)
 			end
 		else
 			if modulo.loading then
@@ -60,7 +60,7 @@ onEvent("Loop", function(elapsed, remaining)
 			end
 		end
 		
-		playerCleanAlert(Player)
+		Player:cleanAlert()
 	end
 end)
 
@@ -78,9 +78,9 @@ onEvent("Loop", function(elapsed, remaining)
 		
 	if modulo.runtimeLapse >= modulo.runtimeLimit then
 		for _, Player in next, room.player do
-			if not Player.static then
-				playerStatic(Player, true)
-				playerAlert(Player, ("<b>%s</b>"):format(
+			if not Player.staticState then
+				Player:static(true)
+				Player:alertMessage(("<b>%s</b>"):format(
 					translate("modulo timeout", Player.language)
 				), nil, "CEP", 48, 3900)
 				

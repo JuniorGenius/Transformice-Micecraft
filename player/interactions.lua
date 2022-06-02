@@ -1,46 +1,38 @@
-inWorldBounds = function(x, y)
-	return(x >= 0 and x < 32640) and (y >= 200 and y < 8392)
-end
-
-playerPlaceObject = function(self, x, y, ghost)
-	if inWorldBounds(x, y) then
-		local slot = self.inventory.selectedSlot
-		if not slot then return end
+function _Player:placeObject(x, y, ghost)
+	if withinRange(x, y) then
+		local Slot = self.inventory.selectedSlot
 		
-		if --[[slot.object.placeable and]] slot.amount >= 1 then
+		if Slot.amount >= 1 then
 			local _getPosBlock = getPosBlock
-			local block = _getPosBlock(x, y-200)
+			local Block = _getPosBlock(x, y - worldVerticalOffset)
 			
-			if block.type == 0 then
-				local ldis = 80
+			if Block.type == 0 then
+				local dist = distance(
+					self.x, self.y,
+					Block.dx+blockHalf, Block.dy+blockHalf
+				)
 				
-				local dist = distance(self.x, self.y, block.dx+16, block.dy+16)
-				if dist < ldis then
-					local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
-					
-					local around, areAround	= false, 4
-					for i=1, 4 do
-						if blocksAround[i].type ~= 0 then
-							around = true
-							break
-						elseif blocksAround[i].type == 0 then
-							areAround = areAround - 1
-							if i==4 then around = false end
+				if dist <= self.prange then
+					local blockList = getBlocksAround(Block, false, true)
+					local hasBlockAround = false
+					for _, block in next, blockList do
+						if block.type ~= 0 then
+							hasBlockAround = true
 						end
 					end
 					
-					if around then
-						blockCreate(block, slot.itemId, ghost, true)
-						local slot = playerInventoryExtract(self, slot.itemId, 1, true, self.inventory.selectedSlot)
-						if slot then
-							tfm.exec.setPlayerScore(self.name, -1, true)
-							playerActualizeHoldingItem(self)
-							if slot.stack == "invbar" then
-								slotRefresh(slot, self.name, 0, 0)
+					if hasBlockAround then
+						local item = Slot.itemId
+						local ref = self:inventoryExtract(Slot.itemId, 1, true, Slot)
+						
+						if ref then
+							blockCreate(Block, item, ghost, true)
+							self:actualizeHoldingItem()
+							
+							if ref.stack == "invbar" then
+								Slot:refresh(self.name, 0, 0)
 							end
 						end
-						--playerUpdateInventoryBar(self)
-						--recalculateShadows(block, 9*(areAround/4))
 					end
 				end
 			end
@@ -48,39 +40,37 @@ playerPlaceObject = function(self, x, y, ghost)
 	end
 end
 
-playerDestroyBlock = function(self, x, y)
-	if (x >= 0 and x < 32640) and (y >= 200 and y < 8392) then
-		local _getPosBlock = getPosBlock
-		local Block = _getPosBlock(x, y-200)
+function _Player:destroyBlock(x, y)
+	if withinRange(x, y) then
+		local Block = getPosBlock(x, y - worldVerticalOffset)
+		
 		if Block.type ~= 0 then
-			local ldis = 80
-			local dist = distance(self.x, self.y, Block.dx+16, Block.dy+16)
+			local dist = distance(
+				self.x, self.y,
+				Block.dx + blockHalf, Block.dy + blockHalf
+			)
 			
-			if dist < ldis then
-				local blocksAround = {_getPosBlock(x-32, y-200), _getPosBlock(x, y-232), _getPosBlock(x+32, y-200), _getPosBlock(x, y-168)}
+			if dist <= self.prange then
+				local blockList = getBlocksAround(Block, false, true)
+				local isOpen = false
 				
-				local notAround, around = 4, false
-				for i=1, 4 do
-					if blocksAround[i].type == 0 or blocksAround[i].ghost then
-						around = false
-						break
-					elseif blocksAround[i].type ~= 0 or blocksAround[i].ghost then
-						notAround = notAround + 1
-						if i == 4 then around = true end
+				for _, block in next, blockList do
+					if block.ghost then
+						isOpen = true
 					end
 				end
 				
-				if not around then
+				if isOpen then
 					local Slot = self.inventory.selectedSlot
 					local drop = itemDealBlockDamage(Slot.object, Block)
+					
 					if drop ~= 0 then
 						if Block.type == 0 then
-							local Slot = playerInventoryInsert(self, drop, 1, "invbar", true)
-							if Slot then
-								tfm.exec.setPlayerScore(self.name, 1, true)
-								playerActualizeHoldingItem(self)
+							local ref = self:inventoryInsert(drop, 1, "invbar", true)
+							if ref then
+								self:actualizeHoldingItem()
 								if Slot.stack == "invbar" then
-									slotRefresh(Slot, self.name, 0, 0)
+									Slot:refresh(self.name, 0, 0)
 								end
 							end
 						end
@@ -91,7 +81,7 @@ playerDestroyBlock = function(self, x, y)
 	end
 end
 
-playerInitTrade = function(self, whom, activate)
+function _Player:initTrade(whom, activate)
 	if whom and self ~= whom then
 		self.trade.whom = whom
 		self.trade.timestamp = os.time()
@@ -99,18 +89,18 @@ playerInitTrade = function(self, whom, activate)
 	end
 end
 
-playerCancelTrade = function(self)
+function _Player:cancelTrade()
 	self.trade.whom = nil
 	self.trade.timestamp = os.time()
 	self.trade.isActive = false
 end
 
-playerBlockInteract = function(self, block)
-	if block.type ~= 0 then
-		if block.interact then
-			blockInteract(block, self)
+function _Player:blockInteract(Block)
+	if Block.type ~= 0 then
+		if Block.interact then
+			blockInteract(Block, self)
 		else
-			playerAlert(self, objectMetadata[block.type].name, 328, "D", 14)
+			self:alertMessage(objectMetadata[Block.type].name, 328, "D", 14)
 		end
 	end
 end

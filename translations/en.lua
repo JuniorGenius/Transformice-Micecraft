@@ -70,6 +70,12 @@ You can also contact me if you have any question and if you want to suggest some
         physics_destroyed = "Physic system destroyed: <CEP>Limit of physic objects reached:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "World loading failure."
     },
+    loading = {
+        new = {
+            world = "Generating New World"
+        },
+        loading = "Loading"
+    },
     debug = {
         left = [[<b>$module$</b>
 Ticks: 549 ms

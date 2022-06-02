@@ -47,8 +47,8 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 		if (Player.keys[17] or Player.keys[16]) and select then
 			local origin = Player.inventory.selectedSlot
 			if origin then
-				select, newSlot = playerMoveItem(Player, origin, select, true)
-				playerHudInteract(Player, select)
+				select, newSlot = Player:moveItem(origin, select, true)
+				Player:hudInteract(select)
 			end
 		end
 		
@@ -57,6 +57,6 @@ onEvent("TextAreaCallback", function(textAreaId, playerName, eventName)
 		else
 			eventSlotSelected(Player, newSlot)
 		end
-		playerChangeSlot(Player, newSlot.stack, newSlot, true)
+		Player:changeSlot(newSlot.stack, newSlot, true)
 	end
 end)

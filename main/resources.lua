@@ -2,25 +2,25 @@
 local defTrunkDestroy = function(self, Player, norep)
 	if not self.ghost then return end
 	
-	local upward = getPosBlock(self.dx + 16, self.dy - 216)
+	local upward = getPosBlock(self.dx + blockHalf, self.dy - (worldVerticalOffset - blockHalf))
 	local leavetype = self.type + 1
 	
 	if upward.type == leavetype then
 		local yy, block
-		local dx, dy = self.dx + 16, self.dy - 184
+		local dx, dy = self.dx + blockHalf, self.dy - (worldVerticalOffset + blockHalf)
 		local _getPosBlock = getPosBlock
 		local h = 1
 		
 		for y=-4, -1 do
-			yy = dy + (y*32)
+			yy = dy + (y * blockSize)
 			if y >= -2 then h = 2 end
 			for x=-h, h do
-				block = _getPosBlock(dx + (x*32), yy)
+				block = _getPosBlock(dx + (x*blockSize), yy)
 				
 				if block.type == leavetype then
 					block.timestamp = self.timestamp
 					appendEvent(
-						math.random(15,75)*1000, false,
+						math.random(5,55)*1000, false,
 						function(self, lt, pl)
 							if self.timestamp == lt then
 								blockDestroy(self, true, pl)
@@ -71,23 +71,8 @@ stackPresets = {
 		
 		output = 5,
 		
-		callback = function(self, playerObject)
-			local stackObject = playerObject.inventory.craft
-			
-			if stackObject then
-				local result = stackFetchCraft(stackObject)
-				if result then
-					local retval = slotFill(
-						stackObject.slot[#stackObject.slot], 
-						result[1], result[2],
-						true
-					)
-					
-					slotRefresh(stackObject.slot[#stackObject.slot], playerObject.name)
-					
-					return retval
-				end
-			end
+		callback = function(self, Player)
+			return Player:fetchCraft(self)
 		end,
 		
 		slot = {
@@ -116,23 +101,8 @@ stackPresets = {
 		xOffset = 0,
 		yOffset = 0,
 		
-		callback = function(self, playerObject, blockObject)
-			local stackObject = playerObject.inventory[self.stack]
-			if stackObject then
-				local result = stackFetchCraft(stackObject)
-
-				if result then
-					local retval = slotFill(
-						stackObject.slot[#stackObject.slot], 
-						result[1], result[2],
-						true
-					)
-					
-					slotRefresh(stackObject.slot[#stackObject.slot], playerObject.name)
-					
-					return retval
-				end
-			end
+		callback = function(self, Player)
+			return Player:fetchCraft(self)
 		end,
 		
 		output = 10,
@@ -220,7 +190,7 @@ do
 			end
 		end,
 		onUpdate = function(self, Player)
-			local block = getPosBlock(self.dx + 16, self.dy - 216)
+			local block = getPosBlock(self.dx + blockHalf, self.dy - worldVerticalOffset - blockHalf)
 			if block.type == 0 then
 				self.event = appendEvent(
 					math.random(7000, 10000), false,
@@ -258,7 +228,7 @@ do
 			end
 		end,
 		onUpdate = function(self, Player)
-			local block = getPosBlock(self.dx + 16, self.dy - 216)
+			local block = getPosBlock(self.dx + blockHalf, self.dy - worldVerticalOffset - blockHalf)
 			if block.type ~= 0 then
 				self.event = appendEvent(
 					math.random(3000, 5000), false,
@@ -496,16 +466,15 @@ do
 		interact = true,
 		particles = {1},
 		handle = {
-			stackNew, 10, "Crafting Table",
+			_Stack.new, 10, "Crafting Table",
 			stackPresets["Crafting Table"],
 			36
 		},
-		onInteract = function(self, playerObject)
-			playerObject.inventory.bridge = blockGetInventory(self)
+		onInteract = function(self, Player)
+			Player.inventory.bridge = blockGetInventory(self)
 			
-            playerHideInventory(playerObject)
-            playerDisplayInventory(
-                playerObject,
+            Player:hideInventory()
+            Player:displayInventory(
                 {{"bag", 0, 0, true}, 
                 {"invbar", 0, -36, false}, 
                 {"bridge", 0, 0, true}}
@@ -754,7 +723,7 @@ do
             appendEvent(3000, false, self.onAwait, self, ...)
         end,
         onAwait = function(self, playerObject)
-            worldExplosion(self.dx+16, self.dy+16, 3, 1.25, playerObject)
+            worldExplosion(self.dx+blockHalf, self.dy+blockHalf, 3, 1.25, playerObject)
             blockDestroy(self, true, playerObject)
         end
     }

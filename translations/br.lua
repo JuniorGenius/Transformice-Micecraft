@@ -53,5 +53,11 @@ Espero que goste !]]
     errors = {
         physics_destroyed = "Sistema de fisica destruido: <CEP>Limite de objetos fisicos alcançado:</CEP> <R>$current$/$limit$</R>.",
         worldfail = "Falha no carregamento do mundo."
+    },
+    loading = {
+        new = {
+            world = "Generando Novo Mundo"
+        },
+        loading = "Carregando"
     }
 })

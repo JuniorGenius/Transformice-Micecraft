@@ -1,5 +1,4 @@
-
-slotAdd = function(self, amount)
+function _Slot:add(amount)
 	if self.itemId ~= 0 then
 		if self.stackable then
 			local fixedAmount = self.amount + amount
@@ -11,7 +10,7 @@ slotAdd = function(self, amount)
 	return false
 end
 
-slotSubstract = function(self, amount)
+function _Slot:substract(amount)
 	if self.itemId ~= 0 then
 		if self.stackable then
 			local fixedAmount = self.amount - amount
@@ -21,33 +20,37 @@ slotSubstract = function(self, amount)
 	end
 end
 
-slotDisplaceAll = function(self, direction, source, target)	
+function _Slot:displaceAll(direction, source, target)	
 	local newSlot
 	if direction.itemId == 0 then
 		stackExchangeItemsPosition(self, direction)
 		newSlot = direction
 	else
 		if direction.itemId == self.itemId then
-			if direction.amount + self.amount <= 64 then
-				slotAdd(direction, self.amount)
-				slotEmpty(self, source.name)
-				newSlot = direction
-			else			
-				local _amount = 64 - direction.amount
-				slotAdd(direction, _amount)
-				if _amount >= self.amount then
-					slotEmpty(self, source.name)
+			if direction.allowInsert then
+				if direction.amount + self.amount <= 64 then
+					direction:add(self.amount)
+					self:empty(source.name)
+					
 					newSlot = direction
-				else
-					slotSubstract(self, _amount)
-					newSlot = self
+				else			
+					local fx = 64 - direction.amount
+					direction:add(fx)
+					self:substract(fx)
+					
+					if not self.allowInsert then
+						newSlot = target.inventory[self.stack]:insertItem(
+							self.itemId, self.amount, nil
+						)
+					else
+						newSlot = direction
+					end
 				end
-			end
+			end			
 		else
 			if not self.allowInsert then
-				local item = stackInsertItem(
-					target.inventory[self.stack],
-					self.itemId, self.amount, direction
+				local item = target.inventory[self.stack]:insertItem(
+					self.itemId, self.amount, nil
 				)
 				if item then direction = item end
 			else
@@ -60,55 +63,57 @@ slotDisplaceAll = function(self, direction, source, target)
 	return newSlot or direction
 end
 
-slotDisplaceAmount = function(self, direction, amount, source, target)
+function _Slot:displaceAmount(direction, amount, source, target)
 	local newSlot
-	if (self.itemId == direction.itemId or direction.itemId == 0) and self.stackable then
-		if self.amount > amount then
-			stackExtractItem(
-				source.inventory[self.stack], 
-				self.itemId, amount, true
-			)
-			
-			stackInsertItem(
-				target.inventory.bag,
-				self.itemId, amount, direction
-			)
-			newSlot = self
-		else
-			if direction.itemId == 0 then
-				stackExchangeItemsPosition(self, direction)
-				newSlot = direction
-			elseif direction.itemId == self.itemId then
-				if direction.amount + amount <= 64 then
-					slotAdd(direction, amount)
-					slotEmpty(self, source.name)
-					
-					newSlot = direction
-				else
-					amount = 64 - direction.amount
-					slotAdd(direction, amount)
-					if direction.amount + amount <= 64 then
-						if amount >= self.amount then
-							slotEmpty(self, source.name)
-							newSlot = direction
-						else
-							slotSubstract(self, amount)
-							newSlot = self
-						end
-					else
-						newSlot = direction
-					end
-				end
-			else
-				newSlot = direction
+	
+	local transfer = function(_source, _origin, _target, _direction)
+		_target.inventory[_direction.stack]:insertItem(
+			_origin.itemId, amount, _direction
+		)
+		_source.inventory[_origin.stack]:extractItem(
+			_origin.itemId, amount, true
+		)
+	end
+	
+	if direction.itemId == 0 then
+		if self.allowInsert then
+			transfer(source, self, target, direction)
+			if self.amount > 0 then
+				newSlot = self
 			end
+		else
+			stackExchangeItemsPosition(self, direction)
+			newSlot = direction
 		end
-	end	
+	elseif self.itemId == direction.itemId then
+		if direction.allowInsert then
+			
+			if direction.amount + amount <= 64 then
+				direction:add(amount)
+				self:empty(source.name)
+			
+				newSlot = direction
+			else
+				local fx = 64 - direction.amount
+				direction:add(fx)
+				
+				self:substract(fx)
+				
+				newSlot = self:displaceAll(direction, source, target)
+			end
+		else
+			newSlot = direction
+		end
+	else
+		if not self.allowInsert then
+			self:displaceAll(direction, source, target)
+		end
+	end
 	
 	return newSlot 
 end
 
-slotItemMove = function(self, direction, amount, playerName)
+function _Slot:itemMove(direction, amount, playerName)
 	local target, source
 	
 	if type(playerName) == "table" then
@@ -134,9 +139,9 @@ slotItemMove = function(self, direction, amount, playerName)
 			newSlot = (target ~= source and self or direction)
 			if direction.allowInsert then
 				if amount == 0 then
-					newSlot = slotDisplaceAll(self, direction, source, target)
+					newSlot = self:displaceAll(direction, source, target)
 				else
-					newSlot = slotDisplaceAmount(self, direction, amount, source, target)
+					newSlot = self:displaceAmount(direction, amount, source, target)
 				end
 			end
 		end

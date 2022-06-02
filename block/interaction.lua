@@ -37,7 +37,7 @@ blockDestroy = function(self, display, playerObject, dontUpdate)
 			for _, block in next, blockList do
 				block:onUpdate(playerObject)
 			end
-			chunkRefreshSegList(map.chunk[self.chunk], blockList)
+			map.chunk[self.chunk]:refreshSegList(blockList)
 		end
 	end
 end
@@ -105,7 +105,7 @@ blockCreate = function(self, type, ghost, display, playerObject)
 			for _, block in next, blockList do
 				block:onUpdate(playerObject)
 			end
-			chunkRefreshSegList(map.chunk[self.chunk], blockList)
+			map.chunk[self.chunk]:refreshSegList(blockList)
 		end
 	end
 end
@@ -172,13 +172,13 @@ blockGetInventory = function(self)
 	end
 end
 
-blockInteract = function(self, playerObject)
+blockInteract = function(self, Player)
 	if self.interact then
-		local distance = distance(self.dx+16, self.dy+16, playerObject.x, playerObject.y)
-		if distance < 56 then
-			self:onInteract(playerObject)
+		local distance = distance(self.dx + blockHalf, self.dy +  blockHalf, Player.x, Player.y)
+		if distance < (blockSize * 2) then
+			self:onInteract(Player)
 		else
-			playerAlert(playerObject, "You're too far from the "..objectMetadata[self.type].name..".", 328, "N", 14)
+			Player:alertMessage("You're too far from the "..objectMetadata[self.type].name..".", 328, "N", 14)
 		end
 	end
 end
